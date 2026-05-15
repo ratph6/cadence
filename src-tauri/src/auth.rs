@@ -21,13 +21,10 @@ use tokio::sync::Mutex;
 use crate::storage::{self, Tokens};
 use crate::HTTP;
 
-// --- CONFIGURE THIS --------------------------------------------------------
 // Client ID resolution order:
 //   1. config.json `clientId` field (set via the GUI)
 //   2. SPOTIFY_CLIENT_ID env at runtime
-//   3. SPOTIFY_CLIENT_ID env at build time
 // Register `http://127.0.0.1:53127/callback` in your Spotify app dashboard.
-const COMPILE_CLIENT_ID: Option<&str> = option_env!("SPOTIFY_CLIENT_ID");
 const REDIRECT_PORT: u16 = 53127;
 
 fn client_id() -> Result<String, String> {
@@ -43,12 +40,8 @@ fn client_id() -> Result<String, String> {
             return Ok(id);
         }
     }
-    if let Some(id) = COMPILE_CLIENT_ID.filter(|s| !s.is_empty()) {
-        return Ok(id.to_string());
-    }
     Err("Spotify Client ID not set. Enter it on the login screen.".into())
 }
-// ---------------------------------------------------------------------------
 
 const SCOPES: &str = concat!(
     "user-read-private user-read-email ",

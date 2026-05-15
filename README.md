@@ -89,13 +89,12 @@ Subsequent launches don't ask for anything — they just open.
 
 ## The Spotify Client ID
 
-There are three places Cadence will look for the Client ID, in order:
+There are two places Cadence will look for the Client ID, in order:
 
 1. The `clientId` field in `config.json` (this is what the login screen sets).
 2. The `SPOTIFY_CLIENT_ID` environment variable at runtime.
-3. The `SPOTIFY_CLIENT_ID` environment variable at build time (compiled into the binary via `option_env!`).
 
-Most people just use the GUI option. The env-var paths are useful if you're shipping pre-configured builds for someone else.
+Most people just use the GUI option. The env var is useful for scripted launches or local development.
 
 If you ever need to change the Client ID — for example, you registered a new Spotify app — go to **Settings → Spotify Client ID**, edit, save. No reboot needed; the next API call uses the new ID. (You will need to log out and log back in if the new app has different scopes.)
 

@@ -52,10 +52,6 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Bake your Spotify client_id at compile time so end-users don't
-          # have to register their own Spotify developer app. Optional —
-          # if the secret is unset, the login screen still prompts for one.
-          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Cadence ${{ github.ref_name }}"
@@ -71,7 +67,7 @@ jobs:
 
             ## Requirements
             - Spotify Premium account
-            - First launch may need a Spotify Developer client_id (paste it in the login screen) unless this build was published with one baked in
+            - A Spotify Developer client_id (free): create one at https://developer.spotify.com/dashboard, add `http://127.0.0.1:53127/callback` as a redirect URI, paste the client_id into Cadence's login screen on first launch
           releaseDraft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           args: ${{ matrix.args }}
