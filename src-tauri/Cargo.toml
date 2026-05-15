@@ -33,6 +33,7 @@ log = "0.4"
 cpal = "0.15"
 ringbuf = "0.4"
 discord-rich-presence = "0.2"
+memory-stats = "1"
 
 [profile.release]
 codegen-units = 1

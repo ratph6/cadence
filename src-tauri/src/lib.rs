@@ -6,6 +6,7 @@ mod librespot_backend;
 mod audio_pipeline;
 mod discord_rpc;
 mod themes;
+mod sys;
 
 use once_cell::sync::Lazy;
 use reqwest::Client;
@@ -174,6 +175,8 @@ pub fn run() {
             themes::theme_save,
             themes::theme_read,
             themes::theme_delete,
+            // process introspection
+            sys::process_memory,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

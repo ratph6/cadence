@@ -100,3 +100,11 @@ export const discord = {
   }),
   clear: () => invoke<void>("discord_clear"),
 };
+
+export interface ProcessMemory {
+  rss: number;
+  virt: number;
+}
+export const sys = {
+  processMemory: () => invoke<ProcessMemory>("process_memory"),
+};

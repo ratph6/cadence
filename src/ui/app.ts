@@ -1,7 +1,7 @@
 // Vanilla-DOM Spotify UI. Replaces the previous ImGui canvas surface.
 // Layout: sidebar (nav + pinned + playlists) | top search | main view | now-bar.
 
-import { auth, api } from "../api";
+import { auth, api, sys } from "../api";
 import { state } from "../store";
 import { playback, pollSuppressedUntil, suppressPollFor, apiToSlider } from "../player";
 import { getConfig, patchConfig } from "../settings";
@@ -1965,16 +1965,16 @@ function renderSettings() {
   });
 }
 
-// Memory graph: small canvas in the now-bar's right cell. Reads
-// performance.memory.usedJSHeapSize (Chromium-only, available in WebView2)
-// every SAMPLE_MS, renders via requestAnimationFrame with smooth left-scroll
-// interpolation so the line never jumps in discrete steps.
+// Memory graph: small canvas in the now-bar's right cell. Samples the
+// Cadence process RSS via a Tauri command (works on macOS/Win/Linux —
+// `performance.memory` is Chromium-only and missing in WKWebView).
 const MEM_SAMPLES = 80;
 const MEM_SAMPLE_MS = 200;
 let memBuf: number[] = [];
 let memTimer: number | undefined;
 let memRaf: number | undefined;
 let memLastSampleAt = 0;
+let memLastRss = 0;
 let memEl: HTMLDivElement | null = null;
 let memCanvas: HTMLCanvasElement | null = null;
 let memLabel: HTMLSpanElement | null = null;
@@ -2009,9 +2009,18 @@ function applyMemoryGraph() {
   }
 }
 
-function memSample() {
-  const m = (performance as any).memory;
-  const used = m?.usedJSHeapSize ?? 0;
+async function memSample() {
+  let used = 0;
+  try {
+    const { rss } = await sys.processMemory();
+    used = rss;
+  } catch {
+    // Tauri command unavailable (e.g. running in plain browser dev). Fall back
+    // to V8 heap so dev mode still shows something rather than a flat zero.
+    const m = (performance as any).memory;
+    used = m?.usedJSHeapSize ?? 0;
+  }
+  memLastRss = used;
   if (memBuf.push(used) > MEM_SAMPLES) memBuf.shift();
   memLastSampleAt = performance.now();
   if (memLabel) {
@@ -2040,7 +2049,7 @@ function fmtBytes(n: number): string {
 
 interface MemRow { label: string; bytes: number; detail?: string; }
 
-function gatherMemoryRows(): { rows: MemRow[]; heap: { used: number; total: number; limit: number } | null } {
+function gatherMemoryRows(): { rows: MemRow[]; heap: { used: number; total: number; limit: number } | null; rss: number } {
   const rows: MemRow[] = [];
 
   // 1. Images currently in the DOM. Decoded RGBA bytes ≈ width * height * 4.
@@ -2160,24 +2169,28 @@ function gatherMemoryRows(): { rows: MemRow[]; heap: { used: number; total: numb
   const heap = m
     ? { used: m.usedJSHeapSize, total: m.totalJSHeapSize, limit: m.jsHeapSizeLimit }
     : null;
-  return { rows, heap };
+  return { rows, heap, rss: memLastRss };
 }
 
 function renderMemoryInspector(panel: HTMLElement) {
-  const { rows, heap } = gatherMemoryRows();
-  const heapPct = heap ? (heap.used / heap.limit) * 100 : 0;
+  const { rows, heap, rss } = gatherMemoryRows();
+  const rssBlock = rss > 0
+    ? `
+      <table>
+        <tr><td class="label">Process RSS</td><td class="val">${fmtBytes(rss)}</td></tr>
+      </table>
+      <table>
+        <tr><td class="detail">Whole Cadence process — WebView + Rust side + audio pipeline. Updated every ${MEM_SAMPLE_MS} ms.</td></tr>
+      </table>`
+    : `<table><tr><td class="detail">Process memory unavailable.</td></tr></table>`;
   const heapBlock = heap
     ? `
       <table>
         <tr><td class="label">JS heap used</td><td class="val">${fmtBytes(heap.used)}</td></tr>
         <tr><td class="label">JS heap allocated</td><td class="val">${fmtBytes(heap.total)}</td></tr>
         <tr><td class="label">JS heap limit</td><td class="val">${fmtBytes(heap.limit)}</td></tr>
-      </table>
-      <div class="bar"><span style="transform: scaleX(${(heapPct / 100).toFixed(4)})"></span></div>
-      <table>
-        <tr><td class="detail">${heapPct.toFixed(2)}% of V8 heap limit. Total Cadence process RSS is higher (Tauri WebView + Rust side).</td></tr>
       </table>`
-    : `<table><tr><td class="detail">performance.memory unavailable in this runtime.</td></tr></table>`;
+    : "";
 
   const total = rows.reduce((a, b) => a + b.bytes, 0);
   const breakdown = rows
@@ -2196,6 +2209,7 @@ function renderMemoryInspector(panel: HTMLElement) {
       <h3>Cadence Memory Inspector</h3>
       <button class="close-x" aria-label="Close">×</button>
     </header>
+    ${rssBlock}
     ${heapBlock}
     <table>
       <tr><td class="detail" style="padding-top:10px">Estimated breakdown of in-page allocations (approximations — see notes):</td></tr>
