@@ -1,0 +1,77 @@
+name: release
+
+# Triggers:
+#   - Push a tag like v0.1.0 (or v0.1.0-rc.1) to build + draft a Release.
+#   - workflow_dispatch lets you run it manually from the Actions tab without tagging.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Universal macOS binary (one .dmg for both Apple Silicon and Intel).
+          - platform: macos-latest
+            args: "--target universal-apple-darwin"
+          - platform: windows-latest
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # universal-apple-darwin needs both arches.
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend deps
+        run: npm ci
+
+      - name: Build + bundle + draft release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Bake your Spotify client_id at compile time so end-users don't
+          # have to register their own Spotify developer app. Optional —
+          # if the secret is unset, the login screen still prompts for one.
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Cadence ${{ github.ref_name }}"
+          releaseBody: |
+            ## Install
+
+            **Windows**: download the `.msi` (or `.exe`) and run it. Unsigned, so Windows SmartScreen will warn you — click *More info* → *Run anyway*.
+
+            **macOS**: download the `.dmg`, drag Cadence into Applications. Unsigned, so the first launch needs right-click → *Open*. If macOS says it's "damaged", run this in Terminal:
+            ```
+            xattr -dr com.apple.quarantine /Applications/Cadence.app
+            ```
+
+            ## Requirements
+            - Spotify Premium account
+            - First launch may need a Spotify Developer client_id (paste it in the login screen) unless this build was published with one baked in
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

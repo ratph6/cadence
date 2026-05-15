@@ -211,12 +211,22 @@ async fn refresh(t: &Tokens) -> Result<Tokens, String> {
         .map_err(|e| e.to_string())?;
     let status = response.status();
     if !status.is_success() {
-        // Refresh token is invalid (revoked / expired / mismatched scopes).
-        // Wipe stored credentials so the next call forces re-login.
         let body = response.text().await.unwrap_or_default();
-        let _ = storage::clear().await;
+        // Only wipe credentials when Spotify says the refresh token itself is
+        // dead — a 400 with `invalid_grant`. Transient failures (5xx, 429,
+        // network hiccups, captive-portal HTML) must keep tokens so the next
+        // call can retry. Previously any non-2xx forced a re-login.
+        let is_invalid_grant = status == reqwest::StatusCode::BAD_REQUEST
+            && body.contains("invalid_grant");
+        if is_invalid_grant {
+            let _ = storage::clear().await;
+            return Err(format!(
+                "refresh_token rejected ({}): {} — logged out, please sign in again",
+                status, body
+            ));
+        }
         return Err(format!(
-            "refresh_token rejected ({}): {} — logged out, please sign in again",
+            "transient refresh failure ({}): {} — will retry on next call",
             status, body
         ));
     }
