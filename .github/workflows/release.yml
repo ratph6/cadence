@@ -73,5 +73,5 @@ jobs:
             - Spotify Premium account
             - First launch may need a Spotify Developer client_id (paste it in the login screen) unless this build was published with one baked in
           releaseDraft: true
-          prerelease: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
           args: ${{ matrix.args }}
