@@ -1,0 +1,16 @@
+node_modules
+dist
+target
+src-tauri/target
+src-tauri/gen
+.DS_Store
+*.log
+.env
+.env.*
+.claude
+.idea/
+.vscode/
+
+# Unrelated experiments living in this directory; tracked separately
+holditemtweak/
+playeresp/

@@ -1,0 +1,41 @@
+{
+  "clientId": "",
+  "theme": "default",
+  "layout": "full",
+  "keybinds": {
+    "playPause":   ["Space"],
+    "next":        ["KeyJ", "MediaTrackNext"],
+    "previous":    ["KeyK", "MediaTrackPrevious"],
+    "search":      ["Mod+KeyK"],
+    "volumeUp":    ["Equal"],
+    "volumeDown":  ["Minus"],
+    "toggleLayout":["Mod+Shift+KeyL"],
+    "cycleTheme":  ["Mod+Shift+KeyT"],
+    "settings":    ["Mod+Comma"],
+    "focus":       ["Mod+KeyF"]
+  },
+  "features": {
+    "webPlayback": true,
+    "richArtwork": true,
+    "showLyrics": false,
+    "autoQueueRelated": true,
+    "showCovers": true,
+    "cliMode": false,
+    "discordRpc": false,
+    "pauseOnLock": false,
+    "eqEnabled": false,
+    "showRecents": true,
+    "showClock": true,
+    "disableAnimations": false,
+    "showMemoryGraph": false,
+    "homeCatPhoto": false,
+    "homeDadJoke": false,
+    "homeNews": false,
+    "homeVisualizer": false
+  },
+  "crossfadeMs": 0,
+  "audioBackend": "sdk",
+  "plugins": [],
+  "customCss": "",
+  "pinnedPlaylists": []
+}

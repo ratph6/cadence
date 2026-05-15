@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cadence</title>
+    <!-- Warm the connections we'll hit before audio can play. The Web Playback
+         SDK script (sdk.scdn.co) is the long pole on cold start; preconnecting
+         + preloading lets the browser fetch it in parallel with /src/main.ts
+         instead of waiting for player.ts to inject the <script> tag. -->
+    <link rel="preconnect" href="https://sdk.scdn.co" crossorigin />
+    <link rel="preconnect" href="https://api.spotify.com" crossorigin />
+    <link rel="preconnect" href="https://accounts.spotify.com" crossorigin />
+    <link rel="preconnect" href="https://i.scdn.co" crossorigin />
+    <link rel="preload" href="https://sdk.scdn.co/spotify-player.js" as="script" crossorigin />
+    <link rel="stylesheet" href="/src/styles/base.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
