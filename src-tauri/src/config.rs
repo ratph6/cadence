@@ -1,5 +1,5 @@
 // JSON-based user config: theme, layout, keybinds, feature flags, plugins.
-// Stored at OS config dir / spotify-client / config.json.
+// Stored at OS config dir / cadence / config.json.
 
 use serde_json::Value;
 use std::fs;
@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 fn config_dir() -> Result<PathBuf, String> {
     let mut p = dirs::config_dir().ok_or("no config dir")?;
-    p.push("spotify-client");
+    p.push("cadence");
     fs::create_dir_all(&p).map_err(|e| e.to_string())?;
     Ok(p)
 }

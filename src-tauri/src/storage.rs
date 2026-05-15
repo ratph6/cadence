@@ -11,7 +11,7 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
-const SERVICE: &str = "dev.raph.spotifyclient";
+const SERVICE: &str = "dev.raph.cadence";
 const ACCOUNT: &str = "spotify-tokens";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

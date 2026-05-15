@@ -12,7 +12,7 @@ use std::path::PathBuf;
 
 fn themes_dir() -> Result<PathBuf, String> {
     let mut p = dirs::config_dir().ok_or("no config dir")?;
-    p.push("spotify-client");
+    p.push("cadence");
     p.push("themes");
     fs::create_dir_all(&p).map_err(|e| e.to_string())?;
     Ok(p)

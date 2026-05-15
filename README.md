@@ -105,14 +105,12 @@ If you ever need to change the Client ID — for example, you registered a new S
 
 Two locations:
 
-- **Configuration JSON** — `<OS config dir>/spotify-client/config.json`.
-  - Linux: `~/.config/spotify-client/config.json`
-  - macOS: `~/Library/Application Support/spotify-client/config.json`
-  - Windows: `%APPDATA%\spotify-client\config.json`
+- **Configuration JSON** — `<OS config dir>/cadence/config.json`.
+  - Linux: `~/.config/cadence/config.json`
+  - macOS: `~/Library/Application Support/cadence/config.json`
+  - Windows: `%APPDATA%\cadence\config.json`
 
-  Yes, the directory still says `spotify-client` even though the app is called Cadence — that's intentional, so existing installs don't lose their config when the brand changed.
-
-- **OAuth tokens** — OS keychain, under service identifier `dev.raph.spotifyclient`, account `spotify-tokens`. They're never written to disk in plaintext.
+- **OAuth tokens** — OS keychain, under service identifier `dev.raph.cadence`, account `spotify-tokens`. They're never written to disk in plaintext.
 
 If you want to start fresh, delete `config.json` and remove the keychain entry (Keychain Access on macOS, `credman` / Credential Manager on Windows, `secret-tool clear` on Linux).
 
@@ -368,7 +366,7 @@ Notable choices and the reasoning behind them:
 ### Folder layout
 
 ```
-spotify-client/
+cadence/
 ├── index.html                       # the renderer entry
 ├── src/                             # frontend (TypeScript)
 │   ├── main.ts                      # boot
