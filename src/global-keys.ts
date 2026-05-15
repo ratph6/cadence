@@ -13,12 +13,31 @@ import {
   unregisterAll,
   isRegistered,
 } from "@tauri-apps/plugin-global-shortcut";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { playback } from "./player";
+
+async function toggleCliWindow(): Promise<void> {
+  // The CLI window is declared in tauri.conf.json with label "cli". Looking
+  // it up here (instead of holding a reference) is HMR-safe and survives
+  // window reloads.
+  const w = await WebviewWindow.getByLabel("cli");
+  if (!w) {
+    console.warn("[global-keys] cli window not found");
+    return;
+  }
+  // Emit a single event that the cli-window.ts side translates into the
+  // right action (it knows whether it's currently visible). Keeps the
+  // toggle logic in one place.
+  try { await w.emit("cli-window:toggle"); } catch (e) {
+    console.warn("[global-keys] toggle emit failed", e);
+  }
+}
 
 const BINDS: Array<{ combo: string; fn: () => void; label: string }> = [
   { combo: "Ctrl+Alt+A", fn: () => playback.previous(),   label: "global previous" },
   { combo: "Ctrl+Alt+D", fn: () => playback.next(),       label: "global next" },
   { combo: "Ctrl+Alt+S", fn: () => playback.togglePlay(), label: "global play/pause" },
+  { combo: "Alt+Space",  fn: () => { toggleCliWindow().catch(() => {}); }, label: "open CLI" },
 ];
 
 export async function startGlobalKeys(): Promise<void> {

@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "cli-window",
+  "description": "Capabilities for the standalone Alt+Space CLI window",
+  "windows": ["cli"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-focus",
+    "core:window:allow-set-position",
+    "core:window:allow-is-visible",
+    "core:window:allow-current-monitor"
+  ]
+}

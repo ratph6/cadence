@@ -15,5 +15,14 @@ export default defineConfig({
     minify: "esbuild",
     sourcemap: false,
     cssMinify: true,
+    rollupOptions: {
+      // Multi-page build: the main UI (`index.html`) plus the standalone
+      // Alt+Space CLI window (`cli.html`). Both share the same base.css so
+      // the styling stays in sync automatically.
+      input: {
+        main: "index.html",
+        cli: "cli.html",
+      },
+    },
   },
 });

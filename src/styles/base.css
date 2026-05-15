@@ -2071,3 +2071,34 @@ html.has-theme-bg .cli {
 .addpl-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .addpl-empty { padding: 12px; text-align: center; }
 .addpl-foot { text-align: right; }
+
+/* ==================================================================
+   Standalone Alt+Space CLI window (label="cli" in tauri.conf.json).
+   The window is transparent + frameless, so the body shows the
+   desktop directly. The CLI bar lives at the top edge and the
+   suggestion list expands downward.
+   ================================================================== */
+html:has(body.cli-window),
+body.cli-window {
+  background: transparent !important;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  user-select: none;
+}
+body.cli-window #cli-root { width: 100%; }
+body.cli-window .cli {
+  /* Override the embedded-mode floating positioning — fill the window. */
+  position: static;
+  transform: none;
+  width: 100%;
+  bottom: auto;
+  left: 0;
+  border-radius: 14px;
+  /* The system shadow is off (window prop), so paint our own soft drop. */
+  box-shadow: 0 18px 60px rgba(0, 0, 0, .55);
+}
+body.cli-window .cli-row { padding: 12px 16px; }
+body.cli-window .cli-input { font-size: 14px; }
+body.cli-window .cli-suggest { max-height: 280px; }
