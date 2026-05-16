@@ -102,6 +102,29 @@ export async function initPlayer(): Promise<string | null> {
 
   const ok = await player.connect();
   if (!ok) console.warn("Web Playback SDK connect() returned false");
+
+  // Chromium's autoplay policy keeps the AudioContext suspended until the
+  // user interacts with the page. After a cold app restart the SDK is
+  // ready, the track is loaded, but no sound comes out — touching the
+  // volume slider (or any other UI element) wakes the context. Force the
+  // unlock on the very first user gesture so playback isn't gated on the
+  // user happening to nudge the volume.
+  let unlocked = false;
+  const unlockAudio = () => {
+    if (unlocked || !player) return;
+    unlocked = true;
+    document.removeEventListener("pointerdown", unlockAudio, true);
+    document.removeEventListener("keydown", unlockAudio, true);
+    // Re-applying the current volume is a cheap no-op for the audio gain
+    // but bumps the SDK's internal audio graph, which is what unsticks
+    // the context on Chromium.
+    player.getVolume()
+      .then((v: number) => player.setVolume(v))
+      .catch(() => {});
+  };
+  document.addEventListener("pointerdown", unlockAudio, true);
+  document.addEventListener("keydown", unlockAudio, true);
+
   return state.deviceId.get();
 }
 
@@ -381,6 +404,62 @@ function httpCoalescedSkip(dir: "next" | "previous"): void {
   scheduleSkipDrain(burstStart);
 }
 
+// ----------------------------------------------------------------- start
+//
+// Clicking tracks rapidly used to fire parallel PUTs whose in-flight
+// reconciles fought over `state.playback` and snapped the UI back to
+// stale snapshots. Rather than serialising the PUTs (which made the
+// final track wait for the previous PUT's RTT), we:
+//   - fire every PUT immediately (Spotify's server orders them correctly)
+//   - tag each call with a monotonic sequence and only let the *latest*
+//     PUT's reconcile actually write `state.playback`. Older reconciles
+//     return their snapshot but it's dropped on the floor.
+//
+type StartArgs = {
+  uris?: string[];
+  contextUri?: string;
+  offsetUri?: string;
+  positionMs?: number;
+  optimisticTrack?: any;
+};
+let startSeq = 0;
+
+async function enqueueStart(args: StartArgs): Promise<void> {
+  const my = ++startSeq;
+  suppressUntil = performance.now() + 3000;
+  try {
+    const did = state.deviceId.get() ?? undefined;
+    const q: [string, string][] = did ? [["device_id", did]] : [];
+    const body: Record<string, unknown> = {};
+    if (args.uris) body.uris = args.uris;
+    if (args.contextUri) body.context_uri = args.contextUri;
+    if (args.offsetUri) body.offset = { uri: args.offsetUri };
+    if (args.positionMs !== undefined) body.position_ms = args.positionMs;
+    try {
+      await api.raw("PUT", "/me/player/play", q, body);
+    } catch (e: any) {
+      const msg = String(e);
+      const retryable = msg.includes("404") || msg.includes("NO_ACTIVE_DEVICE");
+      if (retryable) {
+        await ensureDevice();
+        try { await api.raw("PUT", "/me/player/play", q, body); } catch {}
+      } else {
+        console.warn("[playback] start", e);
+      }
+    }
+  } finally {
+    // Only reconcile if no newer click superseded us — prevents older
+    // reconciles from clobbering the now-playing UI with stale state.
+    setTimeout(async () => {
+      if (my !== startSeq) return;
+      try {
+        const s = await api.playbackState();
+        if (s && my === startSeq) state.playback.set(s);
+      } catch {}
+    }, 1200);
+  }
+}
+
 export const playback = {
   togglePlay: async () => {
     const p = state.playback.get();
@@ -473,7 +552,10 @@ export const playback = {
     positionMs?: number;
     optimisticTrack?: any;
   }) => {
-    // Synchronous UI swap — happens on click, before any await.
+    // Synchronous UI swap — happens on click, before any await. We always
+    // apply the latest click's optimistic track, even when a previous PUT
+    // is still in flight, so the now-playing strip tracks the user's
+    // intent immediately.
     if (args.optimisticTrack) {
       state.playback.set({
         is_playing: true,
@@ -487,15 +569,6 @@ export const playback = {
     } else {
       setOptimisticPlaying(true);
     }
-    return withDeviceFallback(async () => {
-      const did = state.deviceId.get() ?? undefined;
-      const q: [string, string][] = did ? [["device_id", did]] : [];
-      const body: Record<string, unknown> = {};
-      if (args.uris) body.uris = args.uris;
-      if (args.contextUri) body.context_uri = args.contextUri;
-      if (args.offsetUri) body.offset = { uri: args.offsetUri };
-      if (args.positionMs !== undefined) body.position_ms = args.positionMs;
-      await api.raw("PUT", "/me/player/play", q, body);
-    }, { reconcileMs: 1200 });
+    return enqueueStart(args);
   },
 };

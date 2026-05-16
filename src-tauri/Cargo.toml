@@ -35,6 +35,13 @@ ringbuf = "0.4"
 discord-rich-presence = "0.2"
 memory-stats = "1"
 
+[target.'cfg(target_os = "windows")'.dependencies]
+# DWM corner-preference API. Tauri's frameless transparent windows show
+# square corners on Win11 by default; we call DwmSetWindowAttribute with
+# DWMWCP_ROUND on the CLI window so the OS-level Acrylic/Mica blur clips
+# to a rounded pill instead of bleeding into the surrounding rectangle.
+windows-sys = { version = "0.59", features = ["Win32_Graphics_Dwm", "Win32_Foundation"] }
+
 [profile.release]
 codegen-units = 1
 lto = true

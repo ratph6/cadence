@@ -20,22 +20,6 @@
         "decorations": false,
         "transparent": false,
         "resizable": true
-      },
-      {
-        "label": "cli",
-        "title": "Cadence CLI",
-        "url": "cli.html",
-        "width": 640,
-        "height": 360,
-        "decorations": false,
-        "transparent": true,
-        "resizable": false,
-        "alwaysOnTop": true,
-        "skipTaskbar": true,
-        "visible": false,
-        "center": true,
-        "focus": false,
-        "shadow": false
       }
     ],
     "security": {

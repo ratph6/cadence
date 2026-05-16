@@ -177,6 +177,7 @@ pub fn run() {
             themes::theme_delete,
             // process introspection
             sys::process_memory,
+            sys::window_round_corners,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

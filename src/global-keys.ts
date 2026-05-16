@@ -17,19 +17,44 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { playback } from "./player";
 
 async function toggleCliWindow(): Promise<void> {
-  // The CLI window is declared in tauri.conf.json with label "cli". Looking
-  // it up here (instead of holding a reference) is HMR-safe and survives
-  // window reloads.
-  const w = await WebviewWindow.getByLabel("cli");
-  if (!w) {
-    console.warn("[global-keys] cli window not found");
+  // Lazy-create the CLI window on first Alt+Space instead of preloading it
+  // at app boot. A hidden webview still holds a full Chromium process tree
+  // (~150-300 MB) — by deferring creation we keep idle memory under the
+  // main window only. Once created the window persists for the rest of
+  // the session so subsequent Alt+Space presses are an instant toggle.
+  const existing = await WebviewWindow.getByLabel("cli");
+  if (existing) {
+    try { await existing.emit("cli-window:toggle"); } catch (e) {
+      console.warn("[global-keys] toggle emit failed", e);
+    }
     return;
   }
-  // Emit a single event that the cli-window.ts side translates into the
-  // right action (it knows whether it's currently visible). Keeps the
-  // toggle logic in one place.
-  try { await w.emit("cli-window:toggle"); } catch (e) {
-    console.warn("[global-keys] toggle emit failed", e);
+  try {
+    // cli-window.ts auto-calls show() on initial boot, which repositions
+    // near the top of the active monitor and focuses the input. We create
+    // with `visible: true` so the window appears right away — the JS-side
+    // positioning runs a tick later and tweaks it into place.
+    // No OS-level Acrylic/Mica — the blur layer ended up stacking with the
+    // CSS card and rendered as a too-bright frosted rectangle on Win11
+    // regardless of tint. The window stays fully transparent and the visible
+    // bar is the CSS card itself: a solid darker pill with rounded corners.
+    new WebviewWindow("cli", {
+      url: "cli.html",
+      width: 720,
+      height: 56,
+      decorations: false,
+      transparent: true,
+      resizable: false,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      visible: true,
+      center: true,
+      focus: true,
+      shadow: false,
+      title: "Cadence CLI",
+    });
+  } catch (e) {
+    console.warn("[global-keys] cli window create failed", e);
   }
 }
 

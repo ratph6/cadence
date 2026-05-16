@@ -13,10 +13,14 @@
     <link rel="preconnect" href="https://accounts.spotify.com" crossorigin />
     <link rel="preconnect" href="https://i.scdn.co" crossorigin />
     <link rel="preload" href="https://sdk.scdn.co/spotify-player.js" as="script" crossorigin />
-    <link rel="stylesheet" href="/src/styles/base.css" />
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; background: #0e0e10; color: #ebebee; font-family: system-ui, sans-serif; }
+      #app { height: 100%; }
+      #boot-fallback { padding: 24px; }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app"><div id="boot-fallback">Booting…</div></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

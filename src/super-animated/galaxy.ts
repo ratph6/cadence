@@ -175,7 +175,16 @@ export function enableGalaxyBackground(opts: { mouse?: boolean } = {}): void {
   document.body.insertBefore(host, document.body.firstChild);
   document.body.classList.add("super-bg");
 
-  const renderer = new Renderer({ alpha: true, premultipliedAlpha: false });
+  // Cap the renderer's DPR. The fragment shader is procedural noise — there's
+  // no fine detail that benefits from a 2-3x framebuffer on a 4K monitor, and
+  // each doubling of DPR quadruples GPU memory + per-frame work. Capping at
+  // 1.5 keeps stars crisp while shaving 50-70 % of the framebuffer footprint
+  // on high-DPI displays.
+  const renderer = new Renderer({
+    alpha: true,
+    premultipliedAlpha: false,
+    dpr: Math.min(window.devicePixelRatio || 1, 1.5),
+  });
   const gl = renderer.gl;
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -251,7 +260,25 @@ export function enableGalaxyBackground(opts: { mouse?: boolean } = {}): void {
     program.uniforms.uMouseActiveFactor.value = smoothMouseActive;
     renderer.render({ scene: mesh });
   }
-  raf = requestAnimationFrame(tick);
+  function startLoop() {
+    if (raf) return;
+    raf = requestAnimationFrame(tick);
+  }
+  function stopLoop() {
+    if (!raf) return;
+    cancelAnimationFrame(raf);
+    raf = 0;
+  }
+  startLoop();
+
+  // Pause the shader entirely when the document is hidden (window minimized,
+  // tab not focused on macOS, system sleep, etc.). Browsers already throttle
+  // rAF to ~1 Hz when hidden but the GPU framebuffer + shader still run on
+  // every wake-up — explicitly cancelling kills wasted GPU + CPU work.
+  function onVisibilityChange() {
+    if (document.hidden) stopLoop(); else startLoop();
+  }
+  document.addEventListener("visibilitychange", onVisibilityChange);
 
   function onMouseMove(e: MouseEvent) {
     const rect = host.getBoundingClientRect();
@@ -285,8 +312,9 @@ export function enableGalaxyBackground(opts: { mouse?: boolean } = {}): void {
   handle = {
     setMouseEnabled,
     destroy() {
-      cancelAnimationFrame(raf);
+      stopLoop();
       window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       setMouseEnabled(false);
       gl.getExtension("WEBGL_lose_context")?.loseContext();
       host.remove();

@@ -125,6 +125,28 @@ function wrap(input: HTMLInputElement) {
   input.addEventListener("pointercancel", release);
   input.addEventListener("lostpointercapture", release);
 
+  // The seek/now-playing bar updates `input.value` programmatically from a
+  // rAF tick — that bypasses the `input` event so updateFill never fires
+  // and the elastic fill stays stuck at 0 %. We can't just dispatch a
+  // synthetic input event because that also flips the seek listener's
+  // `dragging` flag, which then blocks the tick from updating value (the
+  // tick skips updates while dragging). Instead, install a custom property
+  // descriptor on this specific input that re-paints the fill whenever
+  // `.value` is assigned. Native setter is preserved underneath so existing
+  // code (and the input element itself) behaves identically.
+  const proto = HTMLInputElement.prototype;
+  const valueDesc = Object.getOwnPropertyDescriptor(proto, "value")!;
+  const origGet = valueDesc.get!;
+  const origSet = valueDesc.set!;
+  Object.defineProperty(input, "value", {
+    configurable: true,
+    get() { return origGet.call(this); },
+    set(v: string) {
+      origSet.call(this, v);
+      updateFill();
+    },
+  });
+
   updateFill();
 
   const cleanup = () => {
@@ -134,6 +156,9 @@ function wrap(input: HTMLInputElement) {
     input.removeEventListener("pointerup", release);
     input.removeEventListener("pointercancel", release);
     input.removeEventListener("lostpointercapture", release);
+    // Restore the native value descriptor (delete our override → falls back
+    // to the prototype's accessors).
+    delete (input as any).value;
     // Move input back out of the wrapper, then remove wrapper.
     wrapper.parentNode?.insertBefore(input, wrapper);
     wrapper.remove();

@@ -1,3 +1,4 @@
+import "./styles/base.css";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { auth, api, librespot, audioPipeline, eq } from "./api";
@@ -20,6 +21,16 @@ window.addEventListener("keydown", (e) => {
   if ((e.metaKey || e.ctrlKey) && e.code === "KeyR") {
     e.preventDefault();
     location.reload();
+    return;
+  }
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === "KeyI") {
+    e.preventDefault();
+    invoke("open_devtools").catch((err) => console.warn("open_devtools failed", err));
+    return;
+  }
+  if (e.code === "F12") {
+    e.preventDefault();
+    invoke("open_devtools").catch((err) => console.warn("open_devtools failed", err));
   }
 }, true);
 
@@ -124,6 +135,12 @@ async function boot() {
   listen("tray:play_pause", () => playback.togglePlay()).catch(() => {});
   listen("tray:next", () => playback.next()).catch(() => {});
   listen("tray:prev", () => playback.previous()).catch(() => {});
+
+  // Standalone CLI window forwards transport actions here so they can use the
+  // SDK fast path (no HTTP roundtrip when the SDK is the active device).
+  listen("cli:play_pause", () => playback.togglePlay()).catch(() => {});
+  listen("cli:next", () => playback.next()).catch(() => {});
+  listen("cli:prev", () => playback.previous()).catch(() => {});
 
   document.addEventListener("visibilitychange", async () => {
     if (document.hidden) return;

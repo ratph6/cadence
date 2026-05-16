@@ -31,13 +31,27 @@ interface Cmd {
   run: (arg: string) => void | Promise<void>;
 }
 
+async function emitToMain(name: string, payload?: any) {
+  // Route through the main window so transport actions use its SDK fast
+  // path (no HTTP roundtrip when the SDK is the active device). The cli
+  // window itself never loads the Web Playback SDK; without this hop
+  // every pause/skip would always go over HTTPS to Spotify's Web API.
+  //
+  // Use the global `emitTo("main", ...)` rather than grabbing the main
+  // WebviewWindow handle and calling .emit on it — webview.emit() emits
+  // *from* that webview which doesn't reliably fire main-window listeners,
+  // while emitTo targets listeners scoped to the named window.
+  const { emitTo } = await import("@tauri-apps/api/event");
+  await emitTo("main", name, payload);
+}
+
 async function togglePlay() {
-  try {
-    const s = await api.playbackState();
-    if (s?.is_playing) await api.pause();
-    else await api.play({});
-  } catch (e) {
-    console.warn("[cli-window] togglePlay", e);
+  try { await emitToMain("cli:play_pause"); } catch (e) {
+    console.warn("[cli-window] togglePlay emit failed; HTTP fallback", e);
+    try {
+      const s = await api.playbackState();
+      if (s?.is_playing) await api.pause(); else await api.play({});
+    } catch {}
   }
 }
 
@@ -50,6 +64,56 @@ async function searchTrackTitles(arg: string): Promise<string[]> {
   } catch {
     return [];
   }
+}
+
+// One-shot fetch of the user's own playlists for the playlist command. Cached
+// for the lifetime of this cli window — the cli is short-lived per session
+// and Spotify's /me/playlists endpoint is rate-limited, so refetching on
+// every keystroke would burn quota fast.
+let playlistsCache: any[] | null = null;
+let playlistsFetching: Promise<any[]> | null = null;
+async function getMyPlaylists(): Promise<any[]> {
+  if (playlistsCache) return playlistsCache;
+  if (playlistsFetching) return playlistsFetching;
+  playlistsFetching = (async () => {
+    try {
+      const r: any = await api.raw("GET", "/me/playlists", [["limit", "50"]]);
+      playlistsCache = (r?.items ?? []) as any[];
+      return playlistsCache;
+    } catch (e) {
+      console.warn("[cli-window] /me/playlists failed", e);
+      return [];
+    } finally {
+      playlistsFetching = null;
+    }
+  })();
+  return playlistsFetching;
+}
+
+/** Strip a leading `-s ` flag from a playlist-command argument. Returns
+ *  the cleaned name + whether shuffle was requested. */
+function parsePlaylistArg(arg: string): { name: string; shuffle: boolean } {
+  let shuffle = false;
+  let name = arg.trim();
+  if (name === "-s") return { name: "", shuffle: true };
+  if (name.startsWith("-s ")) { shuffle = true; name = name.slice(3).trim(); }
+  return { name, shuffle };
+}
+
+async function searchPlaylistNames(arg: string): Promise<string[]> {
+  const { name, shuffle } = parsePlaylistArg(arg);
+  if (!name) return [];
+  const pls = await getMyPlaylists();
+  const lower = name.toLowerCase();
+  const names = pls
+    .filter((p) => (p?.name ?? "").toLowerCase().includes(lower))
+    .slice(0, 8)
+    .map((p) => p.name as string);
+  // Preserve the `-s` flag in the suggestion strings so Tab / Right-arrow
+  // accepting a suggestion doesn't drop the shuffle flag. The generic
+  // completion logic replaces the entire arg with the suggestion, so the
+  // suggestion has to carry the flag itself.
+  return shuffle ? names.map((n) => `-s ${n}`) : names;
 }
 
 const CMDS: Cmd[] = [
@@ -72,12 +136,12 @@ const CMDS: Cmd[] = [
   {
     names: ["next", "n", "skip", "s"],
     hint: "next track",
-    run: () => api.next().catch(() => {}),
+    run: () => emitToMain("cli:next").catch(() => api.next().catch(() => {})),
   },
   {
     names: ["prev", "b", "back"],
     hint: "previous track",
-    run: () => api.previous().catch(() => {}),
+    run: () => emitToMain("cli:prev").catch(() => api.previous().catch(() => {})),
   },
   {
     names: ["queue", "q"],
@@ -88,6 +152,31 @@ const CMDS: Cmd[] = [
       const r: any = await api.search(q, "track", 1).catch(() => null);
       const t = r?.tracks?.items?.[0];
       if (t?.uri) await api.queueAdd(t.uri).catch(() => {});
+    },
+  },
+  {
+    names: ["playlist", "pl"],
+    hint: "play playlist — `playlist <name>` (add `-s` for shuffle)",
+    complete: (arg) => searchPlaylistNames(arg),
+    run: async (arg) => {
+      const { name, shuffle } = parsePlaylistArg(arg);
+      if (!name) return;
+      const pls = await getMyPlaylists();
+      const lower = name.toLowerCase();
+      // Prefer exact match, then prefix, then any substring.
+      const match =
+        pls.find((p) => (p?.name ?? "").toLowerCase() === lower) ??
+        pls.find((p) => (p?.name ?? "").toLowerCase().startsWith(lower)) ??
+        pls.find((p) => (p?.name ?? "").toLowerCase().includes(lower));
+      const uri: string | undefined = match?.uri;
+      if (!uri) return;
+      // Set shuffle BEFORE play so the very first track served from the
+      // playlist context comes out of a shuffled queue. Reversing the order
+      // means the first track is always the playlist's first item even
+      // with `-s`.
+      await api.raw("PUT", "/me/player/shuffle",
+        [["state", shuffle ? "true" : "false"]]).catch(() => {});
+      await api.play({ contextUri: uri }).catch(() => {});
     },
   },
   {
@@ -148,12 +237,46 @@ root.innerHTML = `
     <div class="cli-suggest" id="cli-suggest"></div>
     <div class="cli-row">
       <span class="cli-prompt">:</span>
-      <input class="cli-input" id="cli-input" type="text" autocomplete="off"
-             spellcheck="false" placeholder="command (tab to complete, esc to close)" />
+      <div class="cli-input-wrap">
+        <input class="cli-input" id="cli-input" type="text" autocomplete="off"
+               spellcheck="false" placeholder="command (→ to accept, ↑↓ + Enter, esc to close)" />
+        <span class="cli-ghost" id="cli-ghost"></span>
+      </div>
     </div>
   </div>`;
 const input = document.getElementById("cli-input") as HTMLInputElement;
 const suggestEl = document.getElementById("cli-suggest")!;
+const ghostEl = document.getElementById("cli-ghost")!;
+const card = document.getElementById("cli-bar")!;
+
+// Resize the OS window to exactly fit the rounded card whenever the card's
+// height changes (suggestion list expanding/collapsing). The window has
+// Acrylic/Mica/Vibrancy applied at the OS level, so making the window
+// hug the card means the frosted blur stops at the rounded corners
+// instead of bleeding into a big rect around it.
+let syncQueued = false;
+async function syncWindowSize() {
+  if (syncQueued) return;
+  syncQueued = true;
+  // Coalesce to one rAF — ResizeObserver can fire several times per layout
+  // pass and setSize is a relatively expensive IPC call.
+  requestAnimationFrame(async () => {
+    syncQueued = false;
+    const rect = card.getBoundingClientRect();
+    const h = Math.max(48, Math.ceil(rect.height));
+    const w = Math.max(320, Math.ceil(rect.width));
+    const dpr = window.devicePixelRatio || 1;
+    try {
+      const { PhysicalSize } = await import("@tauri-apps/api/window");
+      await getCurrentWindow().setSize(
+        new PhysicalSize(Math.round(w * dpr), Math.round(h * dpr)),
+      );
+    } catch (e) {
+      console.warn("[cli-window] resize failed", e);
+    }
+  });
+}
+new ResizeObserver(syncWindowSize).observe(card);
 
 let suggestions: string[] = [];
 let suggestIdx = 0;
@@ -166,26 +289,118 @@ function parseLine(line: string): { cmd: Cmd | null; arg: string; name: string }
   return { cmd, arg, name: head };
 }
 
+// Match the in-app CLI exactly: use <div data-i> for rows (not <button>),
+// otherwise the browser's default button chrome paints a light-grey box
+// per row, which is what made the standalone window look unstyled.
 function renderCmdSuggest() {
-  suggestEl.innerHTML = CMDS.map((c, i) => `
-    <button class="cli-item ${i === suggestIdx ? "active" : ""}" data-i="${i}">
-      <span class="cli-cmd">${c.names[0]}</span>
-      <span class="cli-hint">${c.hint}</span>
-    </button>`).join("");
+  suggestEl.innerHTML = firstWordMatches.map((c, i) => `
+    <div class="cli-item ${i === suggestIdx ? "active" : ""}" data-i="${i}">
+      <span class="cli-cmd">${escapeHtml(c.names[0]!)}</span>
+      <span class="cli-hint">${escapeHtml(c.hint)}</span>
+    </div>`).join("");
+  attachRowClicks();
 }
 
 function renderArgSuggest() {
   suggestEl.innerHTML = suggestions.map((s, i) => `
-    <button class="cli-item ${i === suggestIdx ? "active" : ""}" data-i="${i}">
+    <div class="cli-item ${i === suggestIdx ? "active" : ""}" data-i="${i}">
       <span>${escapeHtml(s)}</span>
-    </button>`).join("");
+    </div>`).join("");
+  attachRowClicks();
+}
+
+function attachRowClicks() {
+  suggestEl.querySelectorAll<HTMLElement>(".cli-item[data-i]").forEach((row) => {
+    row.addEventListener("click", () => {
+      const i = parseInt(row.dataset.i!);
+      if (!Number.isFinite(i)) return;
+      suggestIdx = i;
+      const v = input.value;
+      const space = v.indexOf(" ");
+      if (space !== -1 && suggestions.length) {
+        input.value = v.slice(0, space + 1) + suggestions[i]!;
+      } else if (firstWordMatches[i]) {
+        input.value = firstWordMatches[i]!.names[0]! + " ";
+        recomputeFirstWordMatches();
+        refreshSuggest().catch(() => {});
+      }
+      input.focus();
+      updateGhost();
+    });
+  });
 }
 
 function escapeHtml(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[c]!);
 }
 
+let suggestSeq = 0;
+// Track whether the user has navigated suggestions with arrow keys. If they
+// have, Enter should apply the highlighted entry rather than running whatever
+// happens to be in the input (which may be a partial first letter).
+let userNavigated = false;
+// Subset of CMDS whose canonical name (or alias) prefix-matches what the
+// user has typed so far. The suggestion list, Tab/Enter accept, ghost
+// completion, and arrow navigation all read from this — without filtering,
+// "playlis<Tab>" was filling the *first* command in CMDS regardless of
+// what was typed.
+let firstWordMatches: Cmd[] = CMDS.slice();
+
+function recomputeFirstWordMatches() {
+  const v = input.value;
+  if (v.includes(" ")) {
+    firstWordMatches = CMDS.slice();
+    return;
+  }
+  if (!v) {
+    firstWordMatches = CMDS.slice();
+    return;
+  }
+  const lower = v.toLowerCase();
+  const matched = CMDS.filter((c) =>
+    c.names.some((n) => n.toLowerCase().startsWith(lower)),
+  );
+  // Fall back to the full list if nothing matches — better to keep the row
+  // populated than blank it out mid-type.
+  firstWordMatches = matched.length ? matched : CMDS.slice();
+}
+
+/** Update the inline ghost-completion span shown after the cursor — a faint
+ *  preview of the most likely command (first-word) or first suggestion
+ *  (arg). Pressing → at the end of the input accepts whatever's previewed. */
+function updateGhost() {
+  const v = input.value;
+  let ghost = "";
+  if (!v.includes(" ")) {
+    if (v.length > 0 && firstWordMatches.length) {
+      const lower = v.toLowerCase();
+      // Prefer the highlighted match if the user has arrowed.
+      const candidate = firstWordMatches[suggestIdx] ?? firstWordMatches[0]!;
+      const name = candidate.names.find((n) => n.toLowerCase().startsWith(lower))
+        ?? candidate.names[0]!;
+      if (name.length > v.length) {
+        ghost = name.slice(v.length);
+      }
+    }
+  } else {
+    const space = v.indexOf(" ");
+    const arg = v.slice(space + 1);
+    const first = suggestions[suggestIdx] ?? suggestions[0];
+    if (first && first.toLowerCase().startsWith(arg.toLowerCase()) && first.length > arg.length) {
+      ghost = first.slice(arg.length);
+    }
+  }
+  ghostEl.textContent = ghost;
+}
+
 async function refreshSuggest() {
+  // Bump a sequence number so we can discard the result of any in-flight
+  // arg-completion call whose input no longer matches. Without this, a
+  // slow searchTrackTitles("foo") that resolves AFTER the user has cleared
+  // the input would clobber the freshly-rendered command list with stale
+  // song results — the exact symptom of "delete the text, songs keep
+  // showing up". Mirrors the suggestSeq guard in the embedded cli.ts.
+  const my = ++suggestSeq;
   const line = input.value;
   if (!line.trim() || !line.includes(" ")) {
     suggestions = [];
@@ -200,53 +415,124 @@ async function refreshSuggest() {
     return;
   }
   const out = await cmd.complete(arg);
+  if (my !== suggestSeq) return;
   suggestions = Array.isArray(out) ? out : [];
   if (suggestIdx >= suggestions.length) suggestIdx = 0;
   renderArgSuggest();
+  updateGhost();
 }
 
-async function submit() {
-  const line = input.value.trim();
+function submit() {
+  // If the user navigated suggestions via arrow keys, the highlighted entry
+  // is what they meant — apply it over whatever's typed. Without this Enter
+  // would run the partial first-word match instead of the selected row.
+  let line = input.value;
+  if (userNavigated) {
+    if (!line.includes(" ")) {
+      const pick = firstWordMatches[suggestIdx]?.names[0];
+      if (pick) line = pick;
+    } else if (suggestions.length) {
+      const space = line.indexOf(" ");
+      const pick = suggestions[suggestIdx];
+      if (pick) line = line.slice(0, space + 1) + pick;
+    }
+  } else if (!line.includes(" ") && line.length > 0 && firstWordMatches.length) {
+    // No explicit arrow navigation: if the typed prefix matches a unique
+    // command, run that command rather than failing because the literal
+    // text isn't a registered name (e.g. user types "playlis" → run
+    // "playlist"). Picks the first prefix match — same row the ghost was
+    // previewing.
+    const pick = firstWordMatches[0]!.names[0];
+    if (pick && pick.toLowerCase().startsWith(line.toLowerCase())) {
+      line = pick;
+    }
+  }
+  line = line.trim();
   if (!line) { hide(); return; }
   const { cmd, arg } = parseLine(line);
   if (!cmd) { hide(); return; }
-  try { await cmd.run(arg); } catch (e) { console.warn("[cli-window] cmd error", e); }
-  hide();
+  // Defer hide() a couple of frames so the Enter key's `keyup` event fires
+  // on THIS window before focus shifts. If we hide synchronously inside the
+  // Enter `keydown` handler, the keyup is delivered to whatever app gains
+  // focus next (Discord, a code editor, etc.) — the Enter "leaks" through
+  // the CLI into the surrounding desktop and submits forms / sends chats
+  // the user didn't intend. The command itself still dispatches right
+  // away so playback feels instant.
+  Promise.resolve()
+    .then(() => cmd.run(arg))
+    .catch((e) => console.warn("[cli-window] cmd error", e));
+  setTimeout(hide, 80);
 }
 
 input.addEventListener("input", () => {
   suggestIdx = 0;
+  userNavigated = false;
+  recomputeFirstWordMatches();
   refreshSuggest().catch(() => {});
+  updateGhost();
 });
 input.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { e.preventDefault(); hide(); return; }
-  if (e.key === "Enter") { e.preventDefault(); submit(); return; }
+  if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); hide(); return; }
+  if (e.key === "Enter") {
+    // stopPropagation as belt-and-braces; the real fix for "Enter leaks to
+    // the next app" is the deferred hide() inside submit() — preventDefault
+    // alone doesn't stop the OS from routing the subsequent keyup to a
+    // newly-focused window if we hide synchronously.
+    e.preventDefault();
+    e.stopPropagation();
+    submit();
+    return;
+  }
   if (e.key === "Tab") {
     e.preventDefault();
     const line = input.value;
-    if (!line.includes(" ")) {
-      // Cycle through commands by their canonical name.
-      suggestIdx = (suggestIdx + (e.shiftKey ? -1 : 1) + CMDS.length) % CMDS.length;
-      input.value = CMDS[suggestIdx]!.names[0]! + " ";
+    const isFirstWord = !line.includes(" ");
+    // Apply whatever's currently highlighted FIRST, then bump the index for
+    // the next Tab press. This way "ArrowDown ArrowDown Tab" fills the 3rd
+    // row (what the user selected) instead of the 4th, while bare repeated
+    // Tabs still cycle through suggestions like the in-app CLI.
+    if (isFirstWord) {
+      if (!firstWordMatches.length) return;
+      input.value = firstWordMatches[suggestIdx]!.names[0]! + " ";
+      suggestIdx = (suggestIdx + (e.shiftKey ? -1 : 1) + firstWordMatches.length) % firstWordMatches.length;
+      recomputeFirstWordMatches();
       renderCmdSuggest();
       refreshSuggest().catch(() => {});
-      return;
-    }
-    if (suggestions.length) {
-      suggestIdx = (suggestIdx + (e.shiftKey ? -1 : 1) + suggestions.length) % suggestions.length;
-      // For arg completions, swap in the highlighted suggestion as the arg.
+    } else if (suggestions.length) {
       const { name } = parseLine(line);
       input.value = `${name} ${suggestions[suggestIdx]!}`;
+      suggestIdx = (suggestIdx + (e.shiftKey ? -1 : 1) + suggestions.length) % suggestions.length;
       renderArgSuggest();
     }
+    updateGhost();
     return;
   }
   if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-    const len = (input.value.includes(" ") ? suggestions.length : CMDS.length);
+    const len = (input.value.includes(" ") ? suggestions.length : firstWordMatches.length);
     if (!len) return;
     e.preventDefault();
+    userNavigated = true;
     suggestIdx = (suggestIdx + (e.key === "ArrowDown" ? 1 : -1) + len) % len;
     if (input.value.includes(" ")) renderArgSuggest(); else renderCmdSuggest();
+    updateGhost();
+    return;
+  }
+  if (e.key === "ArrowRight") {
+    // Accept the inline ghost completion when caret is at the end of input.
+    // If caret is mid-text the user is just navigating — leave the cursor
+    // alone so we don't trample standard text-editing.
+    const ghost = ghostEl.textContent ?? "";
+    const atEnd = input.selectionStart === input.value.length
+      && input.selectionEnd === input.value.length;
+    if (ghost && atEnd) {
+      e.preventDefault();
+      input.value = input.value + ghost;
+      suggestIdx = 0;
+      userNavigated = false;
+      refreshSuggest().catch(() => {});
+      updateGhost();
+    }
+    return;
   }
 });
 
@@ -276,9 +562,18 @@ async function show() {
     console.warn("[cli-window] reposition failed", e);
   }
   await w.setFocus().catch(() => {});
+  // Fully reset transient state — show() is reached on every re-open of
+  // the CLI window, so any leftover filter / suggestion / navigation flag
+  // from the previous session has to be cleared. The "only 2 suggestions
+  // show" symptom came from firstWordMatches staying narrowed to the last
+  // typed prefix even after input was blanked.
   input.value = "";
   suggestIdx = 0;
+  userNavigated = false;
+  suggestions = [];
+  recomputeFirstWordMatches();
   renderCmdSuggest();
+  updateGhost();
   setTimeout(() => input.focus(), 0);
 }
 
@@ -301,6 +596,18 @@ import("@tauri-apps/api/event").then(({ listen }) => {
   });
 });
 
-// Boot: the window is created hidden — populate the suggestion list once so
-// the first show() doesn't flash empty.
+// Boot: pre-paint the command list so the first frame is never empty, then
+// kick a show() so positioning + focus happens immediately. The window is
+// created lazily (see global-keys.ts) so reaching this code means the user
+// just pressed Alt+Space — auto-showing is the desired UX.
 renderCmdSuggest();
+show().catch(() => {});
+
+// On Win11, DWM otherwise renders the frameless transparent window as a
+// sharp rectangle even when the CSS card is rounded — which makes the
+// OS-level Acrylic blur read as a "big rect" around the bar. The Rust
+// command calls DwmSetWindowAttribute(DWMWCP_ROUND) so the OS clips the
+// window itself to a rounded shape. Silent no-op on macOS/Linux.
+invoke("window_round_corners").catch((e) => {
+  console.warn("[cli-window] round corners failed", e);
+});

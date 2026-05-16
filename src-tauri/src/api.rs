@@ -4,10 +4,34 @@
 
 use crate::auth::current_access_token;
 use crate::HTTP;
+use once_cell::sync::Lazy;
 use reqwest::Method;
 use serde_json::{json, Value};
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 const BASE: &str = "https://api.spotify.com/v1";
+
+// Spotify's docs are silent on exact quota, but 429 returns `Retry-After`
+// (seconds). We share a process-wide cooldown so parallel callers don't all
+// hammer Spotify the instant the limit lifts — they queue behind the same
+// timestamp. Cap at 30s; longer values propagate as errors so the UI can
+// show real failure instead of pretending the app is fine for 5 minutes.
+static RATE_LIMITED_UNTIL: Lazy<Mutex<Option<Instant>>> = Lazy::new(|| Mutex::new(None));
+const MAX_BACKOFF: Duration = Duration::from_secs(30);
+
+fn cooldown_remaining() -> Option<Duration> {
+    let g = RATE_LIMITED_UNTIL.lock().ok()?;
+    let until = (*g)?;
+    let now = Instant::now();
+    if until > now { Some(until - now) } else { None }
+}
+
+fn set_cooldown(dur: Duration) {
+    if let Ok(mut g) = RATE_LIMITED_UNTIL.lock() {
+        *g = Some(Instant::now() + dur);
+    }
+}
 
 async fn request(
     method: Method,
@@ -31,23 +55,72 @@ async fn request(
         url::Url::parse(&base).map_err(|e| e.to_string())?
     };
     let url_for_err = url.to_string();
-    eprintln!("[api] {} {}", method, url_for_err);
-    let m = method.clone();
-    let mut req = HTTP.request(method, url).bearer_auth(&token);
-    if let Some(b) = body {
-        req = req.json(&b);
-    } else if matches!(m, reqwest::Method::PUT | reqwest::Method::POST | reqwest::Method::DELETE) {
-        // Spotify rejects bodyless PUT/POST without Content-Length: 0
-        // ("411 Length Required"). Force an empty body explicitly.
-        req = req.header(reqwest::header::CONTENT_LENGTH, "0").body("");
+
+    // Honor any active cooldown before sending. Bounded by MAX_BACKOFF; if
+    // the cooldown is somehow longer, fail fast rather than hang the call.
+    if let Some(wait) = cooldown_remaining() {
+        if wait > MAX_BACKOFF {
+            return Err(format!(
+                "429 rate-limited ({}): cooldown {}s exceeds {}s budget",
+                url_for_err,
+                wait.as_secs(),
+                MAX_BACKOFF.as_secs()
+            ));
+        }
+        eprintln!("[api] cooldown {}ms before {}", wait.as_millis(), url_for_err);
+        tokio::time::sleep(wait).await;
     }
-    let resp = req.send().await.map_err(|e| e.to_string())?;
+
+    let build = || -> reqwest::RequestBuilder {
+        let mut req = HTTP.request(method.clone(), url.clone()).bearer_auth(&token);
+        if let Some(b) = body.clone() {
+            req = req.json(&b);
+        } else if matches!(method, Method::PUT | Method::POST | Method::DELETE) {
+            // Spotify rejects bodyless PUT/POST without Content-Length: 0
+            // ("411 Length Required"). Force an empty body explicitly.
+            req = req.header(reqwest::header::CONTENT_LENGTH, "0").body("");
+        }
+        req
+    };
+
+    eprintln!("[api] {} {}", method, url_for_err);
+    let mut resp = build().send().await.map_err(|e| e.to_string())?;
+
+    if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+        let retry_s = resp
+            .headers()
+            .get(reqwest::header::RETRY_AFTER)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.trim().parse::<u64>().ok())
+            .unwrap_or(1)
+            .max(1);
+        let wait = Duration::from_secs(retry_s);
+        set_cooldown(wait);
+        if wait > MAX_BACKOFF {
+            // Drain body for the error message before bailing.
+            let bytes = resp.bytes().await.unwrap_or_default();
+            return Err(format!(
+                "429 Too Many Requests ({}): Retry-After {}s exceeds budget — {}",
+                url_for_err,
+                retry_s,
+                String::from_utf8_lossy(&bytes)
+            ));
+        }
+        eprintln!("[api] 429 — sleeping {}s then retrying {}", retry_s, url_for_err);
+        tokio::time::sleep(wait).await;
+        resp = build().send().await.map_err(|e| e.to_string())?;
+    }
+
     let status = resp.status();
     if status == reqwest::StatusCode::NO_CONTENT {
         return Ok(Value::Null);
     }
     let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
     if !status.is_success() {
+        if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+            // Retry already happened — extend cooldown so the next caller waits.
+            set_cooldown(Duration::from_secs(5));
+        }
         return Err(format!(
             "{} {} ({}): {}",
             status.as_u16(),

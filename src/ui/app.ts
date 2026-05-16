@@ -253,6 +253,38 @@ const cache: {
   artist: new Map(),
 };
 
+// Cap on retained playlist-detail entries. Each entry holds the full
+// tracks array of an opened playlist — for power users with hundreds of
+// pinned/followed playlists, an unbounded Map grew into tens of MB of
+// retained JS objects across a session. 30 covers a typical hot-set
+// (recents + pins + ~20 click-throughs) without keeping stale ones live.
+const PLAYLIST_DETAIL_CAP = 30;
+
+/** LRU-by-recency setter for `cache.playlistDetail`. Map preserves insertion
+ *  order, so we delete-then-set to bubble the just-touched entry to the end
+ *  and evict the head when over cap. Call this anywhere we'd otherwise do
+ *  `cache.playlistDetail.set(id, entry)` directly, so the eviction stays
+ *  in one place. */
+function setPlaylistDetail(id: string, entry: any) {
+  cache.playlistDetail.delete(id);
+  cache.playlistDetail.set(id, entry);
+  while (cache.playlistDetail.size > PLAYLIST_DETAIL_CAP) {
+    const oldest = cache.playlistDetail.keys().next().value;
+    if (oldest === undefined) break;
+    cache.playlistDetail.delete(oldest);
+  }
+}
+
+/** Reorder an existing entry to the end of the LRU without changing its
+ *  contents — called from the open-playlist path so a re-visit refreshes
+ *  the recency without re-fetching. No-op if the entry doesn't exist. */
+function touchPlaylistDetail(id: string) {
+  const e = cache.playlistDetail.get(id);
+  if (!e) return;
+  cache.playlistDetail.delete(id);
+  cache.playlistDetail.set(id, e);
+}
+
 // ----------------------------------------------------------------- persistence
 // Bootstrap a warm cache from localStorage so home + sidebar paint instantly,
 // then revalidate in the background. We bump the version when the schema
@@ -291,7 +323,7 @@ function persistLoad() {
     if (p.pinMeta) for (const [k, v] of Object.entries(p.pinMeta)) cache.pinMeta.set(k, v);
     if (p.playlistDetail) {
       for (const [k, v] of Object.entries(p.playlistDetail)) {
-        cache.playlistDetail.set(k, v as any);
+        setPlaylistDetail(k, v as any);
       }
     }
   } catch {}
@@ -1034,7 +1066,9 @@ function renderPlaylistDetail(id: string) {
   if (entry && (entry as any).__fetching) return;
   if (!entry) {
     entry = { meta: null, tracks: [], total: 0, paginating: false };
-    cache.playlistDetail.set(id, entry);
+    setPlaylistDetail(id, entry);
+  } else {
+    touchPlaylistDetail(id);
   }
   (entry as any).__fetching = true;
   api.raw("GET", `/playlists/${id}`)
@@ -1111,7 +1145,7 @@ function prefetchPlaylistDetail(id: string) {
   if (existing && (existing as any).__fetching) return;
   const entry: any = existing ?? { meta: null, tracks: [], total: 0, paginating: false };
   entry.__fetching = true;
-  cache.playlistDetail.set(id, entry);
+  setPlaylistDetail(id, entry);
   api.raw("GET", `/playlists/${id}`)
     .then((p: any) => {
       entry.meta = p;
@@ -2640,11 +2674,30 @@ function trackList(tracks: any[], opts: TrackListOpts): HTMLElement {
     viewDisposers.push(() => { cancelled = true; });
   }
 
+  // Track which row currently has the .playing class so we can flip it in
+  // O(1) on every playback state change. The old code did querySelectorAll
+  // + a classList.toggle PER row — on a 5000-track playlist that's a 5000-
+  // element tree walk firing every time `state.playback` ticked, and it
+  // was the dominant cost of a track click feeling laggy.
+  let lastPlayingRow: HTMLTableRowElement | null = null;
   const sync = (p: any) => {
     const uri = currentTrack(p)?.uri ?? null;
-    tbody.querySelectorAll<HTMLTableRowElement>(".tr").forEach((r) => {
-      r.classList.toggle("playing", r.dataset.uri === uri);
-    });
+    if (lastPlayingRow && lastPlayingRow.dataset.uri !== uri) {
+      lastPlayingRow.classList.remove("playing");
+      lastPlayingRow = null;
+    }
+    if (uri && (!lastPlayingRow || lastPlayingRow.dataset.uri !== uri)) {
+      // querySelector with an attribute selector still walks until first hit,
+      // but it's a single pass and bails as soon as the matching row is
+      // found — vastly cheaper than touching every row on every event.
+      const next = tbody.querySelector<HTMLTableRowElement>(
+        `.tr[data-uri="${(window as any).CSS?.escape ? CSS.escape(uri) : uri.replace(/"/g, '\\"')}"]`,
+      );
+      if (next) {
+        next.classList.add("playing");
+        lastPlayingRow = next;
+      }
+    }
   };
   sync(state.playback.get());
   viewDisposers.push(state.playback.subscribe(sync));

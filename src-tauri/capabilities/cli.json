@@ -10,6 +10,11 @@
     "core:window:allow-set-focus",
     "core:window:allow-set-position",
     "core:window:allow-is-visible",
-    "core:window:allow-current-monitor"
+    "core:window:allow-current-monitor",
+    "core:window:allow-set-effects",
+    "core:window:allow-set-size",
+    "core:event:allow-emit",
+    "core:event:allow-emit-to",
+    "core:event:allow-listen"
   ]
 }
