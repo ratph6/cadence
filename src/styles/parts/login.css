@@ -1,0 +1,80 @@
+/* ==================================================================
+   Login (DOM-only screen, shown before auth)
+   ================================================================== */
+.login {
+  max-width: 520px;
+  margin: 12vh auto;
+  padding: 0 24px;
+}
+.login h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 20px;
+  letter-spacing: -.3px;
+}
+.login-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow-2);
+}
+.login label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.login input[type="text"] {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  outline: none;
+  transition: border-color .12s;
+}
+.login input[type="text"]:focus { border-color: var(--accent); }
+.login code.copyable {
+  display: block;
+  font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin: 8px 0 12px;
+  font-size: 12px;
+  user-select: text;
+}
+.login .row { display: flex; gap: 8px; margin-top: 12px; }
+.login button {
+  padding: 9px 18px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.login button:hover { background: var(--hover); }
+.login button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #00170a;
+  font-weight: 600;
+}
+.login button.primary:hover { background: #2bea73; }
+.login button:disabled { opacity: .5; cursor: not-allowed; }
+.login .muted { color: var(--text-dim); }
+.login .small { font-size: 12px; }
+.login .error {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(245,101,101,.08);
+  border: 1px solid rgba(245,101,101,.35);
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  font-size: 12px;
+}
+.login .error[hidden] { display: none; }

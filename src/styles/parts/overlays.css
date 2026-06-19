@@ -1,0 +1,227 @@
+/* ==================================================================
+   Context menu
+   ================================================================== */
+.ctx-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 180px;
+  background-color: color-mix(in srgb, var(--panel) 45%, transparent);
+  backdrop-filter: blur(4px) saturate(130%);
+  -webkit-backdrop-filter: blur(4px) saturate(130%);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  box-shadow: var(--shadow-2);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.ctx-menu[hidden] { display: none; }
+.ctx-item {
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  text-align: left;
+  padding: 7px 12px;
+  font-size: 13px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .1s;
+}
+.ctx-item:hover {
+  background-color: color-mix(in srgb, var(--hover) 55%, transparent);
+}
+
+/* ==================================================================
+   Sidebar additions: track count + filled pin star
+   ================================================================== */
+.pl-count {
+  font-variant-numeric: tabular-nums;
+  margin-left: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity .12s;
+}
+.playlists li:hover .pl-count { opacity: 1; }
+.pin-btn.on {
+  opacity: 1 !important;
+  color: var(--accent);
+}
+
+/* ==================================================================
+   Artist links + cards
+   ================================================================== */
+.artist-link, .album-link {
+  cursor: pointer;
+  transition: color .12s;
+}
+.artist-link:hover, .album-link:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+.artist-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.artist-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  cursor: pointer;
+  text-align: center;
+  transition: background .12s, border-color .12s;
+}
+.artist-card:hover { background: var(--panel-2); border-color: var(--border-2); }
+.artist-card img, .artist-card .ph {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--panel-2);
+  margin-bottom: 12px;
+}
+.artist-card .artist-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.album-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+.album-card {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background .12s, border-color .12s;
+  color: var(--text);
+}
+.album-card:hover { background: var(--panel); border-color: var(--border); }
+.album-card img, .album-card .ph {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--panel-2);
+  margin-bottom: 10px;
+}
+.album-card .album-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.hero-art.round { border-radius: 50%; }
+
+/* ==================================================================
+   Focus mode
+   ================================================================== */
+.focus {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 32px;
+  text-align: center;
+}
+.focus-row {
+  display: grid;
+  grid-template-columns: 88px min(420px, 50vh) 88px;
+  gap: 32px;
+  align-items: center;
+  justify-items: center;
+}
+.focus-cover {
+  width: min(420px, 50vh);
+  height: min(420px, 50vh);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.focus-cover .focus-art { width: 100%; height: 100%; }
+.focus-text { margin-top: 28px; }
+.focus-side {
+  background: transparent;
+  border: 1px solid var(--border-2);
+  color: var(--text-dim);
+  cursor: pointer;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  font-size: 44px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .15s, color .15s, border-color .15s, transform .1s;
+}
+.focus-side:hover {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--text);
+  transform: scale(1.06);
+}
+.focus-side:active { transform: scale(.93); }
+
+/* ==================================================================
+   Now-bar artist click affordance
+   ================================================================== */
+.np-artists { cursor: pointer; transition: color .12s; }
+.np-artists:hover { color: var(--text); }
+
+/* ==================================================================
+   Settings: kbd display
+   ================================================================== */
+.kbd-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+kbd {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--panel);
+  border: 1px solid var(--border-2);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: var(--text);
+  margin: 0 2px;
+}
+
+/* ==================================================================
+   Scrollbars — thin, blended, no white
+   ================================================================== */
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.12) transparent; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.08);
+  border-radius: 999px;
+  border: 0;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.18); }
+::-webkit-scrollbar-button { display: none; height: 0; }
