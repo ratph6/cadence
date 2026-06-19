@@ -1,0 +1,280 @@
+/* ==================================================================
+   Search history dropdown — appears under the topbar search input.
+   ================================================================== */
+.search-wrap { position: relative; flex: 1; min-width: 0; max-width: 480px; }
+.search-history {
+  position: absolute;
+  left: 0; right: 0; top: calc(100% + 4px);
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-2);
+  z-index: 200;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.search-history[hidden] { display: none; }
+.sh-row {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+}
+.sh-row:hover { background: var(--hover); }
+.sh-icon { color: var(--text-mute); font-size: 12px; text-align: center; }
+.sh-q   { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-x {
+  background: transparent; border: 0;
+  color: var(--text-mute);
+  cursor: pointer;
+  font-size: 14px; line-height: 1;
+  padding: 2px 6px; border-radius: 4px;
+}
+.sh-x:hover { background: var(--hover); color: var(--text); }
+
+/* ==================================================================
+   Theme list (settings)
+   ================================================================== */
+.theme-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 560px;
+}
+.theme-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.theme-row.active {
+  border-color: var(--accent);
+  background: linear-gradient(0deg, rgba(30,215,96,.06), rgba(30,215,96,.06)), var(--panel);
+}
+.theme-row .theme-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.theme-row .theme-apply {
+  font-size: 12px;
+  padding: 4px 12px;
+}
+.theme-row .theme-del {
+  font-size: 14px;
+  padding: 2px 8px;
+  line-height: 1;
+}
+button.ghost {
+  background: transparent;
+  border: 1px solid var(--border-2);
+  color: var(--text-dim);
+}
+button.ghost:hover { color: var(--text); border-color: var(--border-2); background: var(--hover); }
+
+/* ==================================================================
+   Memory graph widget — sits in the topbar before the user badge
+   ================================================================== */
+.mem-widget {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  opacity: .9;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background-color .12s ease, opacity .12s ease;
+}
+.mem-widget:hover { background: rgba(255,255,255,.06); opacity: 1; }
+
+.mem-inspector {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(4px);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: mem-inspector-fade .12s ease-out;
+}
+@keyframes mem-inspector-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.mem-inspector .panel {
+  background: var(--bg-elev, #181818);
+  color: var(--text, #eee);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  width: min(560px, 92vw);
+  max-height: 80vh;
+  overflow: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+}
+.mem-inspector header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  font-family: inherit;
+}
+.mem-inspector header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+  color: rgba(30,215,96,.95);
+}
+.mem-inspector header .close-x {
+  background: transparent;
+  border: none;
+  color: var(--text-mute, #999);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.mem-inspector header .close-x:hover { background: rgba(255,255,255,.08); color: #fff; }
+.mem-inspector table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.mem-inspector tr { border-top: 1px solid rgba(255,255,255,.04); }
+.mem-inspector tr:first-child { border-top: none; }
+.mem-inspector td {
+  padding: 7px 16px;
+  vertical-align: top;
+}
+.mem-inspector td.label { color: var(--text-mute, #aaa); }
+.mem-inspector td.val   { text-align: right; color: #fff; }
+.mem-inspector td.detail {
+  font-size: 10.5px;
+  color: var(--text-mute, #888);
+  padding-top: 0;
+  padding-bottom: 8px;
+}
+.mem-inspector .bar {
+  position: relative;
+  height: 4px;
+  background: rgba(255,255,255,.06);
+  border-radius: 2px;
+  margin: 4px 16px 8px;
+  overflow: hidden;
+}
+.mem-inspector .bar > span {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(30,215,96,.9), rgba(30,215,96,.6));
+  border-radius: 2px;
+  transform-origin: left;
+}
+.mem-inspector footer {
+  padding: 10px 16px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-mute, #888);
+  font-size: 10.5px;
+}
+.topbar .user { margin-left: 12px; }
+.mem-widget canvas {
+  display: block;
+  width: 110px;
+  height: 22px;
+}
+.mem-label {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-mute);
+  font-family: ui-monospace, Menlo, monospace;
+  letter-spacing: -.2px;
+  min-width: 42px;
+  text-align: right;
+}
+
+/* ==================================================================
+   Click-bounce animation (any .ico-btn or .pulse-on-click on click)
+   ================================================================== */
+@keyframes click-bounce {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(.84); }
+  70%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+.ico-btn.clicked,
+.pulse-on-click.clicked {
+  animation: click-bounce .28s ease;
+}
+.ico-btn.play.clicked { animation: click-bounce .32s ease; }
+
+/* Smoothly fade between play and pause icons when text content changes. */
+.ico-btn.play {
+  transition: background .12s, color .12s, transform .1s;
+}
+
+/* ==================================================================
+   showCovers feature flag — hide all artwork, keep layout slots
+   ================================================================== */
+body.no-covers .td-art img,
+body.no-covers .hero-art:not(.placeholder),
+body.no-covers .focus-art:not(.placeholder),
+body.no-covers .album-card img,
+body.no-covers .artist-card img,
+body.no-covers .np-art {
+  visibility: hidden;
+}
+body.no-covers .td-art img,
+body.no-covers .album-card img,
+body.no-covers .artist-card img {
+  background: var(--panel-2);
+}
+body.no-covers .np-art-wrap { background: var(--panel-2); }
+body.no-covers .hero-art { background: var(--panel-2); box-shadow: none; }
+
+/* Kill every transition / animation app-wide. CSS specificity nightmare to
+   undo per-component, so the simplest path is the brute one. */
+body.no-anim, body.no-anim *, body.no-anim *::before, body.no-anim *::after {
+  transition: none !important;
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
+}
+
+/* ==================================================================
+   Settings: select + status pill
+   ================================================================== */
+select.text-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path fill='%23888' d='M6 8L2 4h8z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  cursor: pointer;
+}
+#backend-status.ok { color: var(--accent); }

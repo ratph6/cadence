@@ -1,0 +1,107 @@
+/* ==================================================================
+   Super animated — Elastic sliders. Wraps native input[type=range]
+   with a custom track that scales-x on overflow drag.
+   ================================================================== */
+body.super-elastic .elastic-wrap {
+  --elastic-scale-x: 1;
+  --elastic-scale-y: 1;
+  --elastic-origin-x: left;
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 60px;
+  height: 22px;
+}
+body.super-elastic .elastic-wrap input[type="range"] {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  margin: 0;
+  opacity: 0;
+  z-index: 2;
+  cursor: grab;
+}
+body.super-elastic .elastic-wrap input[type="range"]:active { cursor: grabbing; }
+body.super-elastic .elastic-wrap::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  height: 6px;
+  margin-top: -3px;
+  background: rgba(255,255,255,.10);
+  border-radius: 999px;
+  transform: scaleX(var(--elastic-scale-x)) scaleY(var(--elastic-scale-y));
+  transform-origin: var(--elastic-origin-x) center;
+  transition: transform .08s linear;
+}
+body.super-elastic .elastic-fill {
+  position: absolute;
+  left: 0; top: 50%;
+  height: 6px;
+  margin-top: -3px;
+  width: 0%;
+  background: var(--accent);
+  border-radius: 999px;
+  transform: scaleX(var(--elastic-scale-x)) scaleY(var(--elastic-scale-y));
+  transform-origin: var(--elastic-origin-x) center;
+  transition: transform .08s linear, width .04s linear;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ==================================================================
+   Theme background-image visibility — when an imported theme provides a
+   background-image, the JS sync layer adds .has-theme-bg to <html>. We
+   then make Cadence's main chrome panels translucent so the picture
+   actually shows through instead of being hidden behind a wall of --bg.
+   ================================================================== */
+html.has-theme-bg body { background-color: transparent !important; }
+html.has-theme-bg .app { background: transparent; }
+html.has-theme-bg .sidebar,
+html.has-theme-bg .topbar,
+html.has-theme-bg .nowbar {
+  background-color: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+html.has-theme-bg .view { background: transparent; }
+
+/* ==================================================================
+   Galaxy background — when `superBackground` flag is on, body gets
+   `.super-bg` and a #galaxy-bg canvas mounts behind everything. Make
+   the chrome translucent so the stars actually show through.
+   ================================================================== */
+body.super-bg { background: transparent !important; }
+body.super-bg .app,
+body.super-bg .view { background: transparent; }
+/* The galaxy canvas is fixed-position with z-index:0, which paints over the
+   non-positioned .app by default. Force .app into its own stacking context
+   above the canvas so the chrome (sidebar/topbar/nowbar/view) renders on top
+   while still showing the stars through their translucent backgrounds. */
+body.super-bg .app { position: relative; z-index: 1; }
+body.super-bg .titlebar,
+body.super-bg .topbar,
+body.super-bg .sidebar,
+body.super-bg .nowbar {
+  background-color: color-mix(in srgb, var(--bg) 60%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+/* Filter overlay only mounts when the theme actually exposes blur/saturation/
+   brightness/opacity vars. Without this gating the wallpaper would be
+   painted twice (body + ::before) and a 4K image would chew an extra ~60 MB
+   of GPU surface for no visual benefit. */
+html.has-theme-bg-fx::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: inherit;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  filter: var(--theme-bg-filter, none);
+  opacity: var(--theme-bg-opacity, 1);
+}

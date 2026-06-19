@@ -1,0 +1,219 @@
+/* ==================================================================
+   App shell: grid layout
+   ================================================================== */
+.app {
+  height: calc(100vh - 32px);
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  grid-template-rows: 56px 1fr 88px;
+  grid-template-areas:
+    "sidebar topbar"
+    "sidebar view"
+    "nowbar  nowbar";
+  background: var(--bg);
+}
+
+/* ----- Sidebar ----- */
+.sidebar {
+  grid-area: sidebar;
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px 12px;
+  gap: 12px;
+  overflow: hidden;
+  min-height: 0;
+}
+.brand {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .3px;
+  color: var(--text);
+  padding: 4px 10px 8px;
+}
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.nav-btn {
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background .15s, color .15s;
+}
+.nav-btn:hover { background: var(--panel); color: var(--text); }
+.nav-btn.active { background: var(--panel-2); color: var(--text); }
+
+.sec {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex-shrink: 0;
+}
+.sec.grow {
+  flex: 1 1 0;
+  min-height: 80px;
+}
+.sec-h {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-mute);
+  padding: 8px 12px 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+}
+.sec-h .ico-btn { padding: 2px 6px; font-size: 12px; }
+
+.pinned, .playlists {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px 4px;
+}
+/* Playlist filter: lives inside the section header. Default = 18px magnifier
+   icon next to the refresh button, no extra row. Focused or non-empty =
+   absolutely-positioned input overlaying the header so the surrounding
+   layout never reflows. */
+.sec-h-pl { position: relative; }
+.sec-h-pl .sec-h-label,
+.sec-h-pl #refresh-pl {
+  transition: opacity .15s;
+}
+.sec-h-pl:focus-within .sec-h-label,
+.sec-h-pl:focus-within #refresh-pl,
+.sec-h-pl:has(.pl-filter:not(:placeholder-shown)) .sec-h-label,
+.sec-h-pl:has(.pl-filter:not(:placeholder-shown)) #refresh-pl {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pl-filter {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: transparent
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a8a93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='7'/><line x1='21' y1='21' x2='16.65' y2='16.65'/></svg>")
+    no-repeat center / 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: transparent;
+  caret-color: transparent;
+  outline: none;
+  font-size: 12px;
+  cursor: pointer;
+  margin-left: auto;
+  transition: width .18s ease, background-color .15s, border-color .15s,
+              padding .18s ease, color .15s;
+}
+.pl-filter:hover { background-color: var(--panel); border-color: var(--border); }
+.pl-filter::placeholder { color: transparent; }
+.pl-filter:focus::placeholder { color: var(--text-mute); }
+.pl-filter:focus,
+.pl-filter:not(:placeholder-shown) {
+  position: absolute;
+  inset: -2px 8px -2px 8px;
+  width: auto;
+  height: auto;
+  padding: 4px 10px 4px 26px;
+  background-color: var(--panel);
+  background-position: 8px center;
+  border-color: var(--border-2);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  caret-color: var(--text);
+  cursor: text;
+  z-index: 2;
+}
+.pl-item.hide { display: none; }
+/* Pinned takes natural height up to half the sidebar; if the user pins more
+   than fits, it scrolls internally. Playlists below claims remaining space. */
+.pinned {
+  flex: 0 1 auto;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.playlists {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.pinned li, .playlists li {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-dim);
+  transition: background .12s, color .12s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.pinned li:hover, .playlists li:hover {
+  background: var(--panel);
+  color: var(--text);
+}
+.pinned li.dim, .playlists li.dim {
+  color: var(--text-mute);
+  cursor: default;
+  font-size: 12px;
+}
+.pinned li.dim:hover, .playlists li.dim:hover { background: transparent; }
+.pl-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.pin-btn {
+  background: transparent;
+  border: 0;
+  color: var(--text-mute);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity .12s, color .12s, background .12s;
+}
+.playlists li:hover .pin-btn { opacity: 1; }
+.pin-btn:hover { color: var(--accent); background: rgba(30,215,96,.1); }
+
+.sidebar-foot {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sidebar-foot .stats-btn {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  color: var(--text-mute);
+}
+.sidebar-foot .stats-btn:hover { color: var(--text); background: var(--panel); }
+.logout {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border-2);
+  color: var(--text-dim);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.logout:hover { background: var(--panel); color: var(--text); border-color: var(--border-2); }

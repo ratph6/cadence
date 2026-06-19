@@ -1,0 +1,36 @@
+/* ==================================================================
+   Custom title bar
+   ================================================================== */
+.titlebar {
+  height: 32px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.titlebar-brand {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .3px;
+  color: var(--text-dim);
+  padding: 0 14px;
+  flex-shrink: 0;
+}
+.titlebar-spacer { flex: 1; height: 100%; }
+.titlebar-btns { display: flex; height: 100%; }
+.tb-btn {
+  background: transparent;
+  border: 0;
+  width: 44px;
+  height: 100%;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s, color .12s;
+}
+.tb-btn:hover { background: var(--panel); color: var(--text); }
+.tb-btn.close:hover { background: #c0392b; color: #fff; }

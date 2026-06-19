@@ -1,0 +1,127 @@
+/* ==================================================================
+   EQ panel — modern vertical sliders, card layout, 0 dB reference line
+   ================================================================== */
+#eq-panel {
+  background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
+  padding: 20px 22px 18px;
+  margin-top: 14px;
+  max-width: 760px;
+}
+#eq-panel.dim { opacity: .45; pointer-events: none; }
+#eq-panel.dim .eq-band { pointer-events: auto; }
+
+#eq-panel .row { margin: 0 0 16px; gap: 10px; }
+#eq-panel select.text-input { background-color: var(--bg-2); }
+
+.eq-bands {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 6px;
+  align-items: stretch;
+}
+.eq-band {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background .12s;
+}
+.eq-band:hover { background: rgba(255,255,255,.03); }
+
+.eq-val {
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  height: 14px;
+  line-height: 14px;
+  letter-spacing: .2px;
+}
+
+.eq-track-wrap {
+  position: relative;
+  height: 180px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* The 0 dB midline — a single subtle pixel across each band's track. */
+.eq-zero-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: rgba(255,255,255,.08);
+  pointer-events: none;
+}
+
+/* Vertical range slider — writing-mode is the modern path; appearance:
+   slider-vertical was deprecated in Chromium and emits a warning. */
+.eq-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 6px;
+  height: 100%;
+  background: transparent;
+  outline: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  position: relative;
+  z-index: 1;
+}
+/* Runnable track styling on Chromium for vertical sliders is delicate; the
+   following selectors apply the dark gray groove and accent fill on the
+   "filled" portion via color-mix isn't broadly available — we settle for a
+   single neutral track. The thumb is what reads as state. */
+.eq-slider::-webkit-slider-runnable-track {
+  width: 6px;
+  background: rgba(255,255,255,.10);
+  border-radius: 999px;
+}
+.eq-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-left: -4px;
+  background: var(--text);
+  border-radius: 50%;
+  border: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,.5);
+  transition: background .12s, transform .1s;
+}
+.eq-slider:hover::-webkit-slider-thumb { background: var(--accent); }
+.eq-slider:active::-webkit-slider-thumb {
+  transform: scale(1.2);
+  background: var(--accent);
+}
+.eq-slider::-moz-range-track {
+  width: 6px;
+  background: rgba(255,255,255,.10);
+  border-radius: 999px;
+}
+.eq-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--text);
+  border: 0;
+  border-radius: 50%;
+}
+
+.eq-label {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .3px;
+  text-transform: lowercase;
+  color: var(--text-mute);
+}
+.eq-band:hover .eq-label { color: var(--text-dim); }
