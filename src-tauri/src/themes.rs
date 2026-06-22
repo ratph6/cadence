@@ -65,7 +65,7 @@ pub fn theme_list() -> Result<Vec<ThemeMeta>, String> {
         let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
         out.push(ThemeMeta { name, size });
     }
-    out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    out.sort_by_key(|m| m.name.to_lowercase());
     Ok(out)
 }
 

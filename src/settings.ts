@@ -28,12 +28,10 @@ export interface AppConfig {
 const DEFAULT_FEATURES: Record<string, boolean> = {
   webPlayback: true,
   richArtwork: true,
-  showLyrics: false,
   autoQueueRelated: true,
   showCovers: true,
   cliMode: false,
   discordRpc: false,
-  pauseOnLock: false,
   eqEnabled: false,
   showRecents: true,
   showClock: true,
@@ -47,6 +45,7 @@ const DEFAULT_FEATURES: Record<string, boolean> = {
   superBackground: false,
   superBackgroundMouse: true,
   superSliders: false,
+  plugins: false,
 };
 
 let current: AppConfig | null = null;

@@ -171,6 +171,12 @@ struct PipelineHandle {
 static EQ_STATE: Lazy<Arc<Mutex<EqState>>> =
     Lazy::new(|| Arc::new(Mutex::new(EqState::default())));
 static PIPELINE: Lazy<Mutex<Option<PipelineHandle>>> = Lazy::new(|| Mutex::new(None));
+// Serializes `start_pipeline` so the check-then-insert below is atomic across
+// concurrent callers. Without it two `audio_pipeline_start` calls could both
+// pass the `is_some()` check and spawn two librespot processes + audio threads,
+// leaking the first handle. A tokio Mutex (not std) so we can hold it across
+// the `.await` points in start_pipeline.
+static START_LOCK: Lazy<tokio::sync::Mutex<()>> = Lazy::new(|| tokio::sync::Mutex::new(()));
 
 // 8-band visualizer state. Each band is a bandpass biquad + running squared-
 // sum across samples, converted to RMS at the end of every cpal callback,
@@ -227,6 +233,9 @@ impl Visualizer {
 // ---- Lifecycle ----------------------------------------------------------
 
 pub async fn start_pipeline() -> Result<(), String> {
+    // Held for the whole function so the is_some() check and the final insert
+    // can't interleave with another start. See START_LOCK definition.
+    let _start = START_LOCK.lock().await;
     {
         let g = PIPELINE.lock().map_err(|e| e.to_string())?;
         if g.is_some() {
@@ -238,6 +247,9 @@ pub async fn start_pipeline() -> Result<(), String> {
         .ok_or("not logged in — sign in to Spotify first")?;
 
     // Spawn librespot, reading 16-bit signed-LE PCM from its stdout.
+    // NOTE: see librespot_backend.rs — the access token is passed via argv
+    // because librespot offers no stdin/env channel; visible to other local
+    // users on a shared machine. Short-lived, user's own scope only.
     let mut child = Command::new("librespot")
         .args([
             "--name", "Cadence (librespot+EQ)",
@@ -321,8 +333,11 @@ pub async fn start_pipeline() -> Result<(), String> {
         let sample_format = config.sample_format();
         let stream_config: StreamConfig = config.into();
 
-        let mut left = ChannelDsp::new(&eq_state.lock().unwrap());
-        let mut right = ChannelDsp::new(&eq_state.lock().unwrap());
+        // Recover from a poisoned EQ mutex (a panic elsewhere while holding it)
+        // rather than panicking the audio thread — the gains are plain data and
+        // the rest of this file already treats the lock as poison-tolerant.
+        let mut left = ChannelDsp::new(&eq_state.lock().unwrap_or_else(|e| e.into_inner()));
+        let mut right = ChannelDsp::new(&eq_state.lock().unwrap_or_else(|e| e.into_inner()));
         let viz = std::sync::Arc::new(std::sync::Mutex::new(Visualizer::new()));
 
         let err_fn = |e| eprintln!("[audio] cpal stream error: {e}");

@@ -54,6 +54,22 @@ async fn request(
     } else {
         url::Url::parse(&base).map_err(|e| e.to_string())?
     };
+
+    // Security: every request here attaches the user's bearer token. An
+    // absolute `path` (Spotify pagination `next` URLs, and the `api_request`
+    // escape hatch reachable from the frontend) must resolve to a Spotify
+    // host, or a compromised/injected caller could exfiltrate the token to an
+    // attacker-controlled origin. Allow only *.spotify.com.
+    match url.host_str() {
+        Some(h) if h == "spotify.com" || h.ends_with(".spotify.com") => {}
+        other => {
+            return Err(format!(
+                "refusing to send bearer token to non-Spotify host: {}",
+                other.unwrap_or("(none)")
+            ));
+        }
+    }
+
     let url_for_err = url.to_string();
 
     // Honor any active cooldown before sending. Bounded by MAX_BACKOFF; if
@@ -67,7 +83,9 @@ async fn request(
                 MAX_BACKOFF.as_secs()
             ));
         }
-        eprintln!("[api] cooldown {}ms before {}", wait.as_millis(), url_for_err);
+        if cfg!(debug_assertions) {
+            eprintln!("[api] cooldown {}ms before {}", wait.as_millis(), url_for_err);
+        }
         tokio::time::sleep(wait).await;
     }
 
@@ -83,7 +101,9 @@ async fn request(
         req
     };
 
-    eprintln!("[api] {} {}", method, url_for_err);
+    if cfg!(debug_assertions) {
+        eprintln!("[api] {} {}", method, url_for_err);
+    }
     let mut resp = build().send().await.map_err(|e| e.to_string())?;
 
     if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
@@ -106,7 +126,9 @@ async fn request(
                 String::from_utf8_lossy(&bytes)
             ));
         }
-        eprintln!("[api] 429 — sleeping {}s then retrying {}", retry_s, url_for_err);
+        if cfg!(debug_assertions) {
+            eprintln!("[api] 429 — sleeping {}s then retrying {}", retry_s, url_for_err);
+        }
         tokio::time::sleep(wait).await;
         resp = build().send().await.map_err(|e| e.to_string())?;
     }

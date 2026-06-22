@@ -13,10 +13,14 @@ let connected = false;
 let lastPushTs = 0;
 let lastUri: string | null = null;
 let lastPaused: boolean | null = null;
+let unsubscribe: (() => void) | null = null;
 
 export async function startDiscordPresence(): Promise<void> {
   const cfg = getConfig();
   if (!cfg.features?.discordRpc) return;
+  // Idempotent: drop any previous subscription so a re-run (settings toggle)
+  // doesn't stack subscribers and double-push presence.
+  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
   const cid = (cfg.discordClientId ?? "").trim();
   if (!cid) {
     console.warn("[discord] discordRpc enabled but no clientId set");
@@ -30,7 +34,7 @@ export async function startDiscordPresence(): Promise<void> {
     return;
   }
 
-  state.playback.subscribe((p) => {
+  unsubscribe = state.playback.subscribe((p) => {
     if (!connected || !p) return;
     const t = p.track_window?.current_track ?? p.item;
     const uri: string | null = t?.uri ?? null;
@@ -75,5 +79,6 @@ export async function startDiscordPresence(): Promise<void> {
 
 export async function stopDiscordPresence(): Promise<void> {
   connected = false;
+  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
   await discord.disconnect().catch(() => {});
 }

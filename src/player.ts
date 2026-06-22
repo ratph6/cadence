@@ -276,7 +276,7 @@ async function runLocalOrApi(
 // seconds after the user stopped, with the title flickering between tracks.
 //
 // Strategy: at most one skip in flight at a time. Extra clicks bump a pending
-// counter (capped at 5 — past that mashing is meaningless). When the in-flight
+// counter (capped at SKIP_NET_CAP — past that mashing is meaningless). When the in-flight
 // call resolves, if there's still pending work, fire the next one. The
 // reconcile poll is also delayed until the burst finishes, so the seekbar
 // doesn't snap to a stale "track from 800 ms ago" mid-burst.

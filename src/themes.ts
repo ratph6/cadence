@@ -323,6 +323,16 @@ async function inlineImports(css: string, depth = 0, seen = new Set<string>()): 
     const url = m[1]!;
     if (seen.has(url)) return { full: m[0], inline: "" };
     seen.add(url);
+    // Only follow https imports. A theme is untrusted text; refusing other
+    // schemes (file:, http:, data:) keeps it from reaching local resources or
+    // pulling code/style over plaintext.
+    try {
+      if (new URL(url, "https://invalid.example").protocol !== "https:") {
+        return { full: m[0], inline: "" };
+      }
+    } catch {
+      return { full: m[0], inline: "" };
+    }
     try {
       const r = await fetch(url, { cache: "force-cache" });
       if (!r.ok) return { full: m[0], inline: "" };
