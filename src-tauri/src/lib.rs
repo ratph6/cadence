@@ -122,7 +122,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
-            if let Err(e) = install_tray(&app.handle()) {
+            if let Err(e) = install_tray(app.handle()) {
                 eprintln!("[tray] install failed: {e}");
             }
             Ok(())

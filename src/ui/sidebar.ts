@@ -4,9 +4,27 @@ import { playback } from "../player";
 import { getConfig, patchConfig } from "../settings";
 import { fmt, idFromUri } from "./util";
 import { ui, navigate, cache, persistSave } from "./state";
-import { showCtxMenu } from "./components/ctx-menu";
+import { showCtxMenu, type CtxItem } from "./components/ctx-menu";
 import { prefetchPlaylistDetail } from "./views/playlist";
 import { renderHome } from "./views/home";
+
+/** Playback context URI for a playlist row. Liked Songs is the special
+ *  `collection` pseudo-playlist keyed on the current user id. */
+export function playlistContextUri(id: string): string {
+  return id === "liked-songs"
+    ? `spotify:user:${state.me.get()?.id}:collection`
+    : `spotify:playlist:${id}`;
+}
+
+/** Shared Open / Play / (Un)pin context-menu items for any playlist row
+ *  (sidebar list, pinned list, home pins). */
+export function playlistCtxItems(id: string, pinLabel: "Pin" | "Unpin"): CtxItem[] {
+  return [
+    { label: "Open", fn: () => openListItem(id) },
+    { label: "Play", fn: () => playback.start({ contextUri: playlistContextUri(id) }) },
+    { label: pinLabel, fn: () => togglePin(id) },
+  ];
+}
 
 
 export async function loadPlaylists(force = false): Promise<any[]> {
@@ -84,17 +102,7 @@ export function renderPlaylistsSidebar(items: any[]) {
     li.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       const id = li.dataset.id!;
-      const isP = pinned.has(id);
-      showCtxMenu(e, [
-        { label: "Open", fn: () => openListItem(id) },
-        { label: "Play", fn: () => {
-          const ctx = id === "liked-songs"
-            ? `spotify:user:${state.me.get()?.id}:collection`
-            : `spotify:playlist:${id}`;
-          playback.start({ contextUri: ctx });
-        }},
-        { label: isP ? "Unpin" : "Pin", fn: () => togglePin(id) },
-      ]);
+      showCtxMenu(e, playlistCtxItems(id, pinned.has(id) ? "Unpin" : "Pin"));
     });
   });
   ul.querySelectorAll<HTMLButtonElement>(".pin-btn").forEach((b) => {
@@ -147,16 +155,7 @@ export function renderPinned() {
     li.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       const id = li.dataset.id!;
-      showCtxMenu(e, [
-        { label: "Open", fn: () => openListItem(id) },
-        { label: "Play", fn: () => {
-          const ctx = id === "liked-songs"
-            ? `spotify:user:${state.me.get()?.id}:collection`
-            : `spotify:playlist:${id}`;
-          playback.start({ contextUri: ctx });
-        }},
-        { label: "Unpin", fn: () => togglePin(id) },
-      ]);
+      showCtxMenu(e, playlistCtxItems(id, "Unpin"));
     });
   });
   pins.forEach((id) => {

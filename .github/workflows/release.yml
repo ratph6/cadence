@@ -56,6 +56,30 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "Cadence ${{ github.ref_name }}"
           releaseBody: |
+            ## What's changed in v0.1.1
+
+            Hardening release focused on security, stability, and open-source readiness.
+
+            ### Security
+            - API proxy now refuses to attach your Spotify token to any non-`spotify.com` host
+            - Plugin loader is off by default, opt-in only, and restricted to `https`/local sources
+            - Theme `@import` fetches restricted to `https`
+            - Tightened Content-Security-Policy (removed `unsafe-inline` from `script-src`)
+
+            ### Fixes
+            - Login no longer hangs on a second attempt or an abandoned browser flow (added a timeout)
+            - Fixed a clock-edge crash in token handling
+            - Local audio pipeline: fixed a double-start race and an EQ-contention crash on the audio thread
+            - librespot backend reaps a dead receiver process instead of reporting it as running
+            - auto-DJ: fixed liked-songs random-pick bias; removed dead code
+            - Release builds now actually apply the size/LTO optimizations (the profile was being silently ignored), and ship without debug logging — smaller, faster binaries
+
+            ### Project
+            - Added `LICENSE` (MIT), `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`
+            - Package metadata + README improvements
+
+            ---
+
             ## Install
 
             **Windows**: download the `.msi` (or `.exe`) and run it. Unsigned, so Windows SmartScreen will warn you — click *More info* → *Run anyway*.
@@ -68,6 +92,6 @@ jobs:
             ## Requirements
             - Spotify Premium account
             - A Spotify Developer client_id (free): create one at https://developer.spotify.com/dashboard, add `http://127.0.0.1:53127/callback` as a redirect URI, paste the client_id into Cadence's login screen on first launch
-          releaseDraft: true
+          releaseDraft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
           args: ${{ matrix.args }}

@@ -1,3 +1,12 @@
 [workspace]
 members = ["src-tauri"]
 resolver = "2"
+
+# Release tuning for the whole workspace. Must live at the workspace root —
+# Cargo ignores `[profile.*]` in member crates.
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

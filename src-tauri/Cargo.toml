@@ -1,8 +1,13 @@
 [package]
 name = "cadence"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.77"
+description = "A fast, native Spotify desktop client with a CLI, 10-band EQ, and Discord Rich Presence."
+license = "MIT"
+repository = "https://github.com/ratph6/cadence"
+homepage = "https://github.com/ratph6/cadence"
+authors = ["ratph6"]
 
 [lib]
 name = "cadence_lib"
@@ -26,10 +31,8 @@ url = "2"
 base64 = "0.22"
 sha2 = "0.10"
 rand = "0.8"
-thiserror = "1"
 once_cell = "1"
 dirs = "5"
-log = "0.4"
 cpal = "0.15"
 ringbuf = "0.4"
 discord-rich-presence = "0.2"
@@ -42,9 +45,7 @@ memory-stats = "1"
 # to a rounded pill instead of bleeding into the surrounding rectangle.
 windows-sys = { version = "0.59", features = ["Win32_Graphics_Dwm", "Win32_Foundation"] }
 
-[profile.release]
-codegen-units = 1
-lto = true
-opt-level = "s"
-panic = "abort"
-strip = true
+# NOTE: the release profile lives in the workspace-root Cargo.toml. Cargo
+# ignores `[profile.*]` declared in a non-root member crate (it emits a
+# warning and silently drops the settings), so keeping it here would mean the
+# LTO/strip/opt-level/panic tuning never reaches release builds.

@@ -1,12 +1,10 @@
 import { api } from "../../api";
-import { state } from "../../store";
-import { playback } from "../../player";
 import { getConfig } from "../../settings";
 import { fmt } from "../util";
 import { ui, cache, persistSave, pushDisposer } from "../state";
 import { showCtxMenu } from "../components/ctx-menu";
 import { trackList } from "../components/track-list";
-import { openListItem, togglePin } from "../sidebar";
+import { openListItem, togglePin, playlistCtxItems } from "../sidebar";
 
 
 // ----------------------------------------------------------------- views
@@ -308,16 +306,7 @@ function drawHomePins() {
     b.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       const id = b.dataset.id!;
-      showCtxMenu(e, [
-        { label: "Open", fn: () => openListItem(id) },
-        { label: "Play", fn: () => {
-          const ctx = id === "liked-songs"
-            ? `spotify:user:${state.me.get()?.id}:collection`
-            : `spotify:playlist:${id}`;
-          playback.start({ contextUri: ctx });
-        }},
-        { label: "Unpin", fn: () => togglePin(id) },
-      ]);
+      showCtxMenu(e, playlistCtxItems(id, "Unpin"));
     });
   });
 

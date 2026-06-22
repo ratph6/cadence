@@ -394,14 +394,13 @@ dependencies = [
 
 [[package]]
 name = "cadence"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "cpal",
  "dirs 5.0.1",
  "discord-rich-presence",
  "keyring",
- "log",
  "memory-stats",
  "once_cell",
  "rand 0.8.6",
@@ -414,7 +413,6 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-global-shortcut",
  "tauri-plugin-opener",
- "thiserror 1.0.69",
  "tokio",
  "url",
  "windows-sys 0.59.0",

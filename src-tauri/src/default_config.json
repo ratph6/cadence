@@ -17,12 +17,10 @@
   "features": {
     "webPlayback": true,
     "richArtwork": true,
-    "showLyrics": false,
     "autoQueueRelated": true,
     "showCovers": true,
     "cliMode": false,
     "discordRpc": false,
-    "pauseOnLock": false,
     "eqEnabled": false,
     "showRecents": true,
     "showClock": true,

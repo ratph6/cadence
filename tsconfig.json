@@ -12,11 +12,7 @@
     "skipLibCheck": true,
     "useDefineForClassFields": true,
     "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true,
-    "baseUrl": ".",
-    "paths": {
-      "@zhobo63/imgui-ts": ["src/imgui-shim.d.ts"]
-    }
+    "allowSyntheticDefaultImports": true
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "exclude": ["node_modules"]

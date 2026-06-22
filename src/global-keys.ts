@@ -15,6 +15,7 @@ import {
 } from "@tauri-apps/plugin-global-shortcut";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { playback } from "./player";
+import { dlog } from "./log";
 
 async function toggleCliWindow(): Promise<void> {
   // Lazy-create the CLI window on first Alt+Space instead of preloading it
@@ -85,7 +86,7 @@ export async function startGlobalKeys(): Promise<void> {
         if ((e as any)?.state && (e as any).state !== "Pressed") return;
         fn();
       });
-      console.log(`[global-keys] registered ${combo} → ${label}`);
+      dlog(`[global-keys] registered ${combo} → ${label}`);
     } catch (err) {
       console.warn(`[global-keys] failed to register ${label} (${combo}):`, err);
     }
