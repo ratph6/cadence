@@ -23,11 +23,14 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' https://i.scdn.co https://*.spotifycdn.com https://*.stats.fm https://cdn.stats.fm https://cataas.com https://*.thehackernews.com https://*.blogspot.com https://feeds.feedburner.com data: blob:; media-src 'self' https://*.scdn.co blob:; connect-src 'self' ipc: http://ipc.localhost https://api.spotify.com https://*.spotify.com https://sdk.scdn.co https://api.stats.fm https://cataas.com https://icanhazdadjoke.com https://api.rss2json.com https://feeds.feedburner.com; script-src 'self' https://sdk.scdn.co https://*.scdn.co 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-src https://sdk.scdn.co https://*.spotify.com"
+      "csp": "default-src 'self'; img-src 'self' https://i.scdn.co https://*.spotifycdn.com https://*.stats.fm https://cdn.stats.fm https://cataas.com https://*.thehackernews.com https://*.blogspot.com https://feeds.feedburner.com data: blob:; media-src 'self' https://*.scdn.co blob:; connect-src 'self' ipc: http://ipc.localhost https://api.spotify.com https://*.spotify.com https://sdk.scdn.co https://api.stats.fm https://cataas.com https://icanhazdadjoke.com https://api.rss2json.com https://feeds.feedburner.com; script-src 'self' https://sdk.scdn.co https://*.scdn.co; style-src 'self' 'unsafe-inline'; frame-src https://sdk.scdn.co https://*.spotify.com"
     }
   },
   "bundle": {
     "active": true,
+    "publisher": "ratph6",
+    "copyright": "Copyright © 2026 ratph6. MIT Licensed.",
+    "license": "MIT",
     "targets": ["app", "dmg", "msi", "nsis"],
     "icon": [
       "icons/32x32.png",

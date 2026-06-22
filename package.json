@@ -3,6 +3,17 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "description": "A fast, native Spotify desktop client with a CLI, 10-band EQ, and Discord Rich Presence.",
+  "license": "MIT",
+  "author": "ratph6",
+  "homepage": "https://github.com/ratph6/cadence",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ratph6/cadence.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ratph6/cadence/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

@@ -269,9 +269,9 @@ const FLAG_META: Record<string, FlagMeta> = {
   showClock:        { group: "Interface",    label: "Clock on home",        desc: "Show the current time next to the greeting." },
   disableAnimations:{ group: "Interface",    label: "Disable animations",   desc: "Kill every CSS transition + animation. Helps perf on slow GPUs." },
   richArtwork:      { group: "Interface",    label: "Rich artwork",         desc: "Use the highest-resolution album image tier. Off = smaller payload." },
-  showLyrics:       { group: "Interface",    label: "Show lyrics",          desc: "Reserved — not yet wired in." },
   cliMode:          { group: "Power user",   label: "Vim-style CLI",        desc: "Press `:` anywhere to open a command bar with autocomplete." },
   showMemoryGraph:  { group: "Power user",   label: "Memory graph",         desc: "Top-right mini chart showing JS heap usage in real time." },
+  plugins:          { group: "Power user",   label: "Load plugins",         desc: "Load user JS plugins listed in config.json. They run with full app privileges — only enable for sources you trust." },
   enableContextMenu:{ group: "Power user",   label: "Right-click menu",     desc: "Show a custom right-click menu with an Inspect option. When off, right-clicking does nothing (default OS menu always suppressed)." },
   superBackground:  { group: "Super animated", label: "Galaxy background",   desc: "Fullscreen WebGL star-field behind the UI. Recolors with the active theme via hue shift." },
   superBackgroundMouse: { group: "Super animated", label: "Galaxy mouse repulsion", desc: "Stars warp away from the cursor. Off = static field that ignores the mouse." },
@@ -281,7 +281,6 @@ const FLAG_META: Record<string, FlagMeta> = {
   homeNews:         { group: "Home extras",  label: "The Hacker News",     desc: "Latest cybersecurity headlines from thehackernews.com (RSS via rss2json)." },
   homeVisualizer:   { group: "Home extras",  label: "Audio visualizer",    desc: "Real-time 8-band visualizer fed from PCM. Requires audio backend = librespot + EQ enabled." },
   discordRpc:       { group: "Integrations", label: "Discord Rich Presence",desc: "Push the current track to your Discord profile. Requires app ID in settings." },
-  pauseOnLock:      { group: "Integrations", label: "Pause on session lock",desc: "Auto-pause when Windows locks the session. Reserved — not yet wired in." },
 };
 const FLAG_GROUP_ORDER = ["Playback", "Audio", "Interface", "Super animated", "Home extras", "Power user", "Integrations"];
 

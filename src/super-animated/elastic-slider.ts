@@ -203,6 +203,20 @@ export function enableElasticSliders(): void {
           ).forEach(wrap);
         }
       });
+      // When a view re-renders it detaches whole subtrees. Unwrap any wrapped
+      // slider going away so its custom `value` descriptor override is restored
+      // and the WeakMap entry is dropped, rather than orphaning the override on
+      // a node that could be reinserted elsewhere.
+      m.removedNodes.forEach((n) => {
+        if (!(n instanceof Element)) return;
+        const wraps = n.matches?.(".elastic-wrap")
+          ? [n]
+          : Array.from(n.querySelectorAll?.(".elastic-wrap") ?? []);
+        for (const w of wraps) {
+          const input = w.querySelector<HTMLInputElement>('input[type="range"]');
+          if (input) unwrap(input);
+        }
+      });
     }
   });
   mutationObs.observe(document.body, { childList: true, subtree: true });

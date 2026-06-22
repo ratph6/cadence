@@ -38,7 +38,7 @@ pub fn window_round_corners(window: tauri::Window) -> Result<(), String> {
     // typed wrappers don't auto-convert.
     let hwnd_typed = window.hwnd().map_err(|e| e.to_string())?;
     let hwnd_raw: *mut std::ffi::c_void = hwnd_typed.0 as *mut _;
-    let pref: i32 = DWMWCP_ROUND as i32;
+    let pref: i32 = DWMWCP_ROUND;
     let hr = unsafe {
         DwmSetWindowAttribute(
             hwnd_raw,

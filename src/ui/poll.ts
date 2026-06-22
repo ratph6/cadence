@@ -4,7 +4,13 @@ import { pollSuppressedUntil } from "../player";
 
 // ----------------------------------------------------------------- polling
 
+let polling = false;
+
 export function startPolling() {
+  // Idempotent: a second call (e.g. re-login without a full reload) would
+  // otherwise stack duplicate intervals that double-poll the API.
+  if (polling) return;
+  polling = true;
   // In-flight dedupe — without this, a slow network or paused renderer can
   // queue up several pending playback/queue fetches that all resolve at once
   // and thrash state subscribers. Skip the next tick if one is still pending.

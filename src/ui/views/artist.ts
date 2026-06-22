@@ -33,7 +33,6 @@ export function renderArtist(id: string) {
 
     api.raw("GET", `/artists/${id}`)
       .then((m: any) => {
-        console.log("[artist] meta response:", m);
         entry!.meta = m;
         if (ui.curView === "artist" && ui.openArtistId === id) drawArtist(id);
       })

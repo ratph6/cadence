@@ -63,7 +63,13 @@ struct TokenResp {
 }
 
 fn now_secs() -> i64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64
+    // A clock set before 1970 would make `duration_since` error; treat that as
+    // epoch 0 (which forces a token refresh) rather than panicking — under
+    // `panic = "abort"` an unwrap here would take down the whole app.
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 fn gen_pkce() -> (String, String) {
@@ -84,7 +90,12 @@ fn random_state() -> String {
 
 #[tauri::command]
 pub async fn start_login(app: tauri::AppHandle) -> Result<(), String> {
-    let _g = LOGIN_LOCK.lock().await;
+    // Reject (don't queue) a concurrent login. The old `.lock().await` made a
+    // second attempt wait on the first's browser flow — which holds the lock
+    // across `accept().await` below — so two clicks could hang indefinitely.
+    let _g = LOGIN_LOCK
+        .try_lock()
+        .map_err(|_| "a login is already in progress".to_string())?;
 
     let cid = client_id()?;
     let (verifier, challenge) = gen_pkce();
@@ -116,8 +127,15 @@ pub async fn start_login(app: tauri::AppHandle) -> Result<(), String> {
         .open_url(url.as_str(), None::<&str>)
         .map_err(|e| e.to_string())?;
 
-    // Wait for the redirect (single accept).
-    let (mut sock, _) = listener.accept().await.map_err(|e| e.to_string())?;
+    // Wait for the redirect (single accept), but don't hold the port + lock
+    // forever if the user abandons the browser flow. Time out after 3 minutes.
+    let (mut sock, _) = tokio::time::timeout(
+        std::time::Duration::from_secs(180),
+        listener.accept(),
+    )
+    .await
+    .map_err(|_| "login timed out — no callback received".to_string())?
+    .map_err(|e| e.to_string())?;
 
     let mut buf = [0u8; 4096];
     let n = sock.read(&mut buf).await.map_err(|e| e.to_string())?;

@@ -8,6 +8,15 @@ This document covers everything: what to install, how the auth dance works, wher
 
 ---
 
+## Screenshots
+
+_Coming soon — drop screenshots/GIFs under `docs/` and reference them here._
+
+<!-- ![Cadence — home](docs/home.png) -->
+<!-- ![Cadence — CLI](docs/cli.png) -->
+
+---
+
 ## Table of contents
 
 1. [What you need to install](#what-you-need-to-install)
@@ -50,7 +59,7 @@ Optional but useful:
 ## Getting it running for the first time
 
 ```bash
-# clone, then:
+git clone https://github.com/ratph6/cadence.git
 cd cadence
 npm install
 ```
@@ -328,8 +337,8 @@ A run-down of every section in the Settings view.
   - **Audio:** `eqEnabled` (10-band EQ — librespot only).
   - **Interface:** `showCovers`, `showRecents`, `showClock`, `disableAnimations`, `richArtwork`.
   - **Home extras:** `homeCatPhoto`, `homeDadJoke`, `homeNews`, `homeVisualizer`.
-  - **Power user:** `cliMode`, `showMemoryGraph`.
-  - **Integrations:** `discordRpc`, `pauseOnLock` (reserved, not implemented).
+  - **Power user:** `cliMode`, `showMemoryGraph`, `plugins` (off by default — loads user JS plugins listed in `config.json`, which run with full app privileges; only enable if you trust the sources).
+  - **Integrations:** `discordRpc`.
 
 Anything not in this list that appears in your `config.json` is a legacy flag from an earlier build; Cadence hides legacy flags from the UI but keeps their values intact in the file.
 
@@ -378,11 +387,22 @@ cadence/
 │   ├── statsfm.ts                   # stats.fm read API wrapper
 │   ├── discord-presence.ts          # Discord RPC frontend subscriber
 │   ├── global-keys.ts               # OS-level media keys
-│   ├── plugins.ts                   # JS plugin loader
-│   ├── styles/base.css              # the entire stylesheet
+│   ├── keybinds.ts                  # in-app keybind dispatch
+│   ├── themes.ts                    # theme import + @import inlining
+│   ├── plugins.ts                   # JS plugin loader (opt-in, untrusted)
+│   ├── log.ts                       # debug-gated logger (no-op in release)
+│   ├── super-animated/              # optional galaxy bg + elastic sliders
+│   ├── styles/
+│   │   ├── base.css                 # imports the parts below
+│   │   └── parts/*.css              # split per-area stylesheets
 │   └── ui/
-│       ├── app.ts                   # main DOM UI (~2000 lines, monolithic)
-│       └── login.ts                 # login screen
+│       ├── app.ts                   # shell / view router
+│       ├── state.ts                 # UI-local state + caches
+│       ├── sidebar.ts, login.ts, poll.ts, util.ts, features.ts
+│       ├── memory-inspector.ts      # memory graph widget
+│       ├── components/              # now-bar, track-list, ctx-menu
+│       └── views/                   # home, search, artist, playlist, liked,
+│                                    #   stats, devices, focus, settings
 ├── src-tauri/                       # Rust backend
 │   ├── Cargo.toml
 │   ├── tauri.conf.json              # window config + CSP
@@ -438,4 +458,6 @@ The dev console shows the exact API error when the click silently fails.
 - Redirect listener is loopback-only (`127.0.0.1`).
 - The default audio backend (Web Playback SDK) uses only documented Spotify endpoints. No ad bypass, no DRM circumvention, no impersonation of `Spotify.app`.
 - The optional librespot backend uses a reverse-engineered protocol. That violates Spotify's terms of service. Use it on a personal account at your own risk; do not redistribute Cadence as if it were a Spotify product.
+- The librespot backend passes the short-lived access token to the `librespot` subprocess as a command-line argument (librespot exposes no other channel for it). On a shared multi-user machine other local users could read it via the process list. Cadence targets single-user machines; see `SECURITY.md`.
+- Plugins (`plugins` feature flag) execute with full application privileges in the app's origin. The loader is off by default and only accepts `https`/local paths. Treat any third-party plugin as untrusted code.
 - All third-party APIs Cadence talks to (cataas, icanhazdadjoke, thehackernews via rss2json, stats.fm) are public and free; nothing is sent to our servers because there are no servers.
